@@ -1,7 +1,6 @@
 import speech_recognition as sr
 from Speaker import vocalize
 from config import LISTENER_ENERGY_THRESHOLD, PLUGIN_LIST
-from api_config import GOOLGE_SPEECH_CREDENTIALS
 from mannerisms import Mannerisms
 
 
@@ -67,9 +66,6 @@ class InitializeBackgroundListening(object):
                             print('Speak a command: ')
                             audio = r.listen(source)
                             try:
-                                # this command is now the actual instruction set not the wake up call
-                                # command = r.recognize_google_cloud(audio_data=audio, credentials_json=GOOLGE_SPEECH_CREDENTIALS())
-                                # the non cloud version might be effective enough
                                 command = r.recognize_google(audio_data=audio)
                             except sr.UnknownValueError:
                                 vocalize(Mannerisms('unknown_audio', None).final_response)

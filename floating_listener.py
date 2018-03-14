@@ -1,5 +1,4 @@
 import speech_recognition as sr
-from api_config import GOOLGE_SPEECH_CREDENTIALS
 
 
 def listen_and_convert():
@@ -15,7 +14,6 @@ def listen_and_convert():
     command = ''
     try:
         command = r.recognize_google(audio_data=audio)
-        #command = r.recognize_google_cloud(audio_data=audio, credentials_json=GOOLGE_SPEECH_CREDENTIALS())
     except sr.UnknownValueError:
         print("Could not understand audio")
     except sr.RequestError as e:
