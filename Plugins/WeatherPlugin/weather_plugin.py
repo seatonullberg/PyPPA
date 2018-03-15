@@ -9,6 +9,7 @@ from mannerisms import Mannerisms
 '''
 TODO: 
 -add local and foreign forecasting
+-fix decimal pronunciation
 '''
 
 

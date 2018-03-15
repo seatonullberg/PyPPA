@@ -1,6 +1,9 @@
 from Speaker import vocalize
 import webbrowser
 
+'''
+-add ability to select an article by keyword in headline
+'''
 
 class NewsPluginBeta(object):
 

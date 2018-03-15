@@ -38,43 +38,48 @@ class InitializeBackgroundListening(object):
 
     def __init__(self):
         self.triggers = ['hey', 'auto', 'Auto', 'wake', 'up']
+        self.r = sr.Recognizer()
+        self.r.dynamic_energy_threshold = False
+        self.r.energy_threshold = LISTENER_ENERGY_THRESHOLD
         update_plugins()
-        self.background_listener()
+        self.call_to_attention()
 
-    def background_listener(self):
-        r = sr.Recognizer()
-        r.energy_threshold = LISTENER_ENERGY_THRESHOLD
+    def call_to_attention(self):
         while True:
             with sr.Microphone() as source:
-                r.adjust_for_ambient_noise(source)
-                audio = None
+                self.r.adjust_for_ambient_noise(source)
                 try:
-                    audio = r.listen(source, timeout=2)
+                    audio = self.r.listen(source, timeout=2)
                 except sr.WaitTimeoutError:
                     print('timeout')
-                    pass
-                if audio is not None:
+                else:
                     try:
-                        command = r.recognize_google(audio_data=audio)
-                        print('background_listener heard: ' + command)
+                        command = self.r.recognize_google(audio_data=audio)
                     except sr.UnknownValueError:
                         print('unknown value error')
-                        command = ''
-                    for trigger in self.triggers:
-                        if trigger in command:
-                            vocalize(Mannerisms('await_command', None).final_response)
-                            print('Speak a command: ')
-                            audio = r.listen(source)
-                            try:
-                                command = r.recognize_google(audio_data=audio)
-                            except sr.UnknownValueError:
-                                vocalize(Mannerisms('unknown_audio', None).final_response)
-                            except sr.RequestError as e:
-                                vocalize(Mannerisms('error', None).final_response)
-                                print("Google Cloud Error; {0}".format(e))
-                            print('passed command: '+command.lower())
-                            process_command(command.lower())
-                            update_plugins()
+                    else:
+                        print('background_listener heard: ' + command)
+                        for trigger in self.triggers:
+                            if trigger in command:
+                                vocalize(Mannerisms('await_command', None).final_response)
+                                self.collect_command()
+                                return
+
+    def collect_command(self):
+        print('Speak a command: ')
+        with sr.Microphone() as source:
+            self.r.adjust_for_ambient_noise(source)
+            audio = self.r.listen(source, timeout=5)
+            try:
+                command = self.r.recognize_google(audio_data=audio)
+            except sr.UnknownValueError:
+                vocalize(Mannerisms('unknown_audio', None).final_response)
+            except sr.RequestError as e:
+                vocalize(Mannerisms('error', None).final_response)
+                print("Google Cloud Error; {0}".format(e))
+            else:
+                print('passed command: ' + command.lower())
+                process_command(command.lower())
 
 
 if __name__ == "__main__":
