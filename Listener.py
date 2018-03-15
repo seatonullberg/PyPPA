@@ -66,9 +66,9 @@ class InitializeBackgroundListening(object):
                                 return
 
     def collect_command(self):
-        print('Speak a command: ')
         with sr.Microphone() as source:
             self.r.adjust_for_ambient_noise(source)
+            print('Speak a command: ')
             audio = self.r.listen(source, timeout=5)
             try:
                 command = self.r.recognize_google(audio_data=audio)
