@@ -5,7 +5,8 @@ import webbrowser
 -add ability to select an article by keyword in headline
 '''
 
-class NewsPluginBeta(object):
+
+class OpenArticleBeta(object):
 
     def __init__(self, command, article_list):
         self.command = command
@@ -36,25 +37,10 @@ class NewsPluginBeta(object):
 
     def generate_response(self):
 
-        for variations in self.FUNCTION_KEY_DICT['1']:
-            if variations in self.command:
-                webbrowser.open_new(self.article_list[0]['url'])
-                return
-        for variations in self.FUNCTION_KEY_DICT['2']:
-            if variations in self.command:
-                webbrowser.open_new(self.article_list[1]['url'])
-                return
-        for variations in self.FUNCTION_KEY_DICT['3']:
-            if variations in self.command:
-                webbrowser.open_new(self.article_list[2]['url'])
-                return
-        for variations in self.FUNCTION_KEY_DICT['4']:
-            if variations in self.command:
-                webbrowser.open_new(self.article_list[3]['url'])
-                return
-        for variations in self.FUNCTION_KEY_DICT['5']:
-            if variations in self.command:
-                webbrowser.open_new(self.article_list[4]['url'])
-                return
+        for indices in self.FUNCTION_KEY_DICT:
+            for variations in self.FUNCTION_KEY_DICT[indices]:
+                if variations in self.command:
+                    webbrowser.open_new(self.article_list[int(indices)-1]['url'])
+                    return
         # if user only says 'yes' just open the first
         webbrowser.open_new(self.article_list[0]['url'])

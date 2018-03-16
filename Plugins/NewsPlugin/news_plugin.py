@@ -1,12 +1,10 @@
 import requests
-from bs4 import BeautifulSoup
-import webbrowser
 import time
 import json
 from Speaker import vocalize
 from floating_listener import listen_and_convert
 from api_config import NEWS_API_KEY
-from Plugins.NewsPlugin.news_module_beta import NewsPluginBeta
+from Plugins.NewsPlugin.open_article_beta import OpenArticleBeta
 
 '''
 TODO:
@@ -19,7 +17,7 @@ class PyPPA_NewsPlugin(object):
     def __init__(self, command):
         self.command = command
         self.query = None
-        self.COMMAND_HOOK_DICT = {'get the news': ['get me the news', 'get me news', 'get the news']}
+        self.COMMAND_HOOK_DICT = {'get the news': ['get me the news', 'give me the news', 'get me news', 'get the news']}
         self.FUNCTION_KEY_DICT = {'by': ['by', 'buy', 'bye']}
 
     def function_handler(self, command_hook, spelling):
@@ -66,5 +64,5 @@ class PyPPA_NewsPlugin(object):
             time.sleep(0.5)
         vocalize('Would you like me to open any of these?')
         answer = listen_and_convert()
-        beta = NewsPluginBeta(answer, article_list)
+        beta = OpenArticleBeta(answer, article_list)
         beta.function_handler()
