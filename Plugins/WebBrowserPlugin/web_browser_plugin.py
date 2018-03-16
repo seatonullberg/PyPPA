@@ -3,12 +3,12 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
 from Speaker import vocalize
 from floating_listener import listen_and_convert
 from mannerisms import Mannerisms
 from Plugins.WebBrowserPlugin.google_search_beta import GoogleSearchBeta
-from api_config import NETFLIX_EMAIL, NETFLIX_PASSWORD, NETFLIX_USER
-import time
+from api_config import NETFLIX_EMAIL, NETFLIX_PASSWORD, NETFLIX_USER, FIREFOX_PROFILE_PATH
 '''
 TODO:
 - add 'and' modifier
@@ -83,7 +83,11 @@ class PyPPA_WebBrowserPlugin(object):
         beta.function_handler()
 
     def netflix_search(self, search_query):
-        driver = webdriver.Firefox()
+        # format the search url
+        search_query = search_query.replace(' ', '%20')
+
+        profile = webdriver.FirefoxProfile(FIREFOX_PROFILE_PATH)
+        driver = webdriver.Firefox(profile)
         driver.get('https://www.netflix.com/')
         # sign in
         driver.find_element_by_link_text('Sign In').click()
@@ -97,15 +101,16 @@ class PyPPA_WebBrowserPlugin(object):
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'profile-icon')))
         driver.find_element_by_xpath("//span[text()='{}']".format(NETFLIX_USER)).click()
 
-        # go to search bar
+        # wait for search and navigate to search url
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'searchTab')))
         if search_query != '':
-            driver.find_element_by_class_name('searchTab').click()
-            search_entry = driver.find_element_by_xpath('//div/div/input')
-            search_entry.send_keys(search_query)
+            driver.get('https://www.netflix.com/search?q='+search_query)
             # wait for results and click the first result for now
-            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'suggestionRailContainer')))
-            try:
-                driver.find_element_by_xpath('//div[@id="title-card-0-0"]').click()
-            except exceptions.ElementClickInterceptedException:
-                driver.find_element_by_xpath('//div[@class="ratio-16x9 pulsate-transparent"]').click()
+            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CLASS_NAME, 'suggestionRailContainer')))
+            title_card = driver.find_element_by_xpath('//div[@id="title-card-0-0"]')
+            ActionChains(driver).move_to_element(title_card).perform()
+            play_link = driver.find_element_by_xpath('//div[@id="title-card-0-0"]/div/a')
+            play_link = play_link.get_attribute('href')
+            driver.get(play_link)
+            # go full screen
+            driver.set_window_size(1920, 1080)
