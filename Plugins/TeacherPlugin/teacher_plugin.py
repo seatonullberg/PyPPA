@@ -13,6 +13,7 @@ class PyPPA_TeacherPlugin(object):
         self.COMMAND_HOOK_DICT = {'teach me': ['teach me about', 'teach me']}
 
         self.FUNCTION_KEY_DICT = {'how to': ['how too', 'hot to', 'hot too', 'how to']}
+        self.isBlocking = True
 
     def function_handler(self, command_hook, spelling):
         # seems unnecessary but leaves room for growth
@@ -41,6 +42,8 @@ class PyPPA_TeacherPlugin(object):
         except wikipedia.DisambiguationError:
             vocalize('could you be more specific?')
 
+        self.isBlocking = False
+
     def scrape_wikihow(self, hook_spelling, function_spelling):
         query = self.command.replace(hook_spelling, '')
         query = query.replace(function_spelling, '')
@@ -64,3 +67,5 @@ class PyPPA_TeacherPlugin(object):
             print(reading_text)
             vocalize('ok, this is how to ' + query)
             vocalize(reading_text)
+
+        self.isBlocking = False

@@ -19,6 +19,7 @@ class PyPPA_NewsPlugin(object):
         self.query = None
         self.COMMAND_HOOK_DICT = {'get the news': ['get me the news', 'give me the news', 'get me news', 'get the news']}
         self.FUNCTION_KEY_DICT = {'by': ['by', 'buy', 'bye']}
+        self.isBlocking = True
 
     def function_handler(self, command_hook, spelling):
         for variations in self.FUNCTION_KEY_DICT['by']:
@@ -66,3 +67,5 @@ class PyPPA_NewsPlugin(object):
         answer = listen_and_convert()
         beta = OpenArticleBeta(answer, article_list)
         beta.function_handler()
+
+        self.isBlocking = False

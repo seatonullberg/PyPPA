@@ -25,6 +25,7 @@ class PyPPA_WeatherPlugin(object):
         self.FUNCTION_KEY_DICT = {'in': ['in']}
         self.location = None
         self.weather_dict = {}
+        self.isBlocking = True
 
     def function_handler(self, command_hook, spelling):
         for variations in self.FUNCTION_KEY_DICT['in']:
@@ -93,3 +94,5 @@ class PyPPA_WeatherPlugin(object):
                      str(round(float(self.weather_dict['precipProbability'])*100, 1))+' percent, wind speeds are at '+
                      str(self.weather_dict['windSpeed'])+' miles per hour, and cloud coverage is around '+
                      str(round(float(self.weather_dict['cloudCover'])*100, 1))+' percent.')
+
+        self.isBlocking = False

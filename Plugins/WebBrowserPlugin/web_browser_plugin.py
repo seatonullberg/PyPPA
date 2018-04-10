@@ -24,9 +24,11 @@ class PyPPA_WebBrowserPlugin(object):
         # remember to place the single word spelling last to avoid 'best spelling' issue
         self.COMMAND_HOOK_DICT = {'open': ['open up', 'open it', 'open'],
                                   'search_google': ['search google for', 'search for', 'google'],
-                                  'search_netflix': ['search netflix for', 'search netflix', 'netflix']}
+                                  'search_netflix': ['search netflix for', 'search netflix', 'netflix'],
+                                  'search_youtube': ['search youtube for', 'search youtube', 'youtube']}
         # use these functions to clarify what might be spelled incorrectly
         self.FUNCTION_KEY_DICT = {'canvas': ['canvas', 'e learning']}
+        self.isBlocking = True
 
     def function_handler(self, command_hook, spelling):
         '''
@@ -43,6 +45,9 @@ class PyPPA_WebBrowserPlugin(object):
             # prepare for a netflix search
             search_query = self.command.replace(spelling, '')
             self.netflix_search(search_query)
+        elif command_hook == 'search_youtube':
+            search_query = self.command.replace(spelling, '')
+            self.youtube_search(search_query)
         else:
             # the open hook is being used
 
@@ -69,10 +74,12 @@ class PyPPA_WebBrowserPlugin(object):
         command_no_spaces = self.command.replace(' ', '')
         driver = webdriver.Firefox()
         driver.get(r'http://www.'+command_no_spaces+'.com/')
+        self.isBlocking = False
 
     def open_canvas(self):
         driver = webdriver.Firefox()
         driver.get(r'https://ufl.instructure.com/')
+        self.isBlocking = False
 
     def google_search(self, search_query):
         driver = webdriver.Firefox()
@@ -81,6 +88,7 @@ class PyPPA_WebBrowserPlugin(object):
         sub_command = listen_and_convert()
         beta = GoogleSearchBeta(sub_command, driver)
         beta.function_handler()
+        self.isBlocking = False
 
     def netflix_search(self, search_query):
         # format the search url
@@ -114,3 +122,17 @@ class PyPPA_WebBrowserPlugin(object):
             driver.get(play_link)
             # go full screen
             driver.set_window_size(1920, 1080)
+        self.isBlocking = False
+
+    def youtube_search(self, search_query):
+        # prepare search query
+        search_query = search_query.replace(' ', '+')
+        # establish driver
+        profile = webdriver.FirefoxProfile(FIREFOX_PROFILE_PATH)
+        driver = webdriver.Firefox(profile)
+        driver.get('https://www.youtube.com/results?search_query=' + search_query)
+        # wait for load and click first video
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, 'style-scope.ytd-video-renderer')))
+        driver.find_element_by_xpath('//div/h3/a[@id="video-title"]').click()
+        self.isBlocking = False
