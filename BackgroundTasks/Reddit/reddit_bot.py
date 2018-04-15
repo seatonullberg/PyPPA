@@ -2,6 +2,8 @@ import sqlite3
 import praw
 import time
 from praw.models import MoreComments
+from bs4 import BeautifulSoup
+import requests
 from api_config import REDDIT_CLIENT_ID, REDDIT_SECRET, REDDIT_USER_AGENT, REDDIT_USERNAME
 
 
@@ -51,7 +53,7 @@ class RedditBot(object):
             upt = UpvotedPostsTable()
             if upt.is_unique(url=data['url']):
                 upt.submit_entry(data)
-                print(data['url'])
+                print('Adding Reddit URL: ', data['url'])
             else:
                 break
 
@@ -81,3 +83,39 @@ class UpvotedPostsTable(object):
             "url, subreddit, comments, title, is_img, is_post, is_article"
         ), [data['url'], data['subreddit'], data['comments'], data['title'], data['is_img'], data['is_post'], data['is_article']])
         self.conn.commit()
+
+    def export(self):
+        # load articles, comments, and titles into useful format
+        # prep titles first
+        self.cursor.execute("SELECT title FROM upvoted_posts")
+        titles = self.cursor.fetchall()
+        titles = [t[0] for t in titles]
+
+        # prep comments next
+        self.cursor.execute("SELECT comments FROM upvoted_posts")
+        comments = self.cursor.fetchall()
+        comments = [c[0].split('\n') for c in comments]
+        formatted_comments = []
+        for c in comments:
+            for cc in c:
+                formatted_comments.append(cc)
+
+        # prep articles last
+        self.cursor.execute("SELECT url FROM upvoted_posts WHERE is_article=?", [1])
+        article_urls = self.cursor.fetchall()
+        article_urls = [a[0] for a in article_urls]
+        articles = []
+        for url in article_urls:
+            try:
+                r = requests.get(url).content
+            except:
+                print('Could not open {} to extract article sentences.'.format(url))
+            else:
+                soup = BeautifulSoup(r, "html5lib")
+                paragraphs = soup.find_all('p')
+                paragraphs = [p.text for p in paragraphs]
+                for p in paragraphs:
+                    articles.append(p)
+
+        # each data type in its own list
+        return titles, comments, articles
