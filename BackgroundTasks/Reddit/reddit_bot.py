@@ -15,8 +15,12 @@ class RedditBot(object):
         self.user = self.bot.redditor(REDDIT_USERNAME)
 
     def startup(self):
-        # add all functions to call here to mirror plugin startup function
-        self.collect_upvoted()
+        # run all functions that are not private or startup
+        funcs = dir(RedditBot)
+        funcs.remove('startup')
+        for func in funcs:
+            if not str(func).startswith('_'):
+                getattr(RedditBot, func)(self)
         # sleep for delay time and then redo the tasks
         time.sleep(self.FREQUENCY)
         self.startup()
@@ -47,6 +51,7 @@ class RedditBot(object):
             upt = UpvotedPostsTable()
             if upt.is_unique(url=data['url']):
                 upt.submit_entry(data)
+                print(data['url'])
             else:
                 break
 
