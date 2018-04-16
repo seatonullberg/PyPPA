@@ -62,14 +62,22 @@ class UpvotedPostsTable(object):
 
     def __init__(self):
         # use reddit.db as file across reddit stuff
-        self.conn = sqlite3.connect('BackgroundTasks/Reddit/reddit.db')
+        # this method of path selection should change
+        try:
+            self.conn = sqlite3.connect('BackgroundTasks/Reddit/reddit.db')
+        except sqlite3.OperationalError:
+            self.conn = sqlite3.connect('reddit.db')
         self.cursor = self.conn.cursor()
         self.cursor.execute("CREATE TABLE IF NOT EXISTS upvoted_posts ({})".format(
             "url text NOT NULL, subreddit text, comments text, title text, is_img integer, is_post integer, is_article integer"
         ))
 
     def __del__(self):
-        self.conn.close()
+        try:
+            self.conn.close()
+        except AttributeError:
+            print("'UpvotedPostsTable' object has no attribute 'conn'")
+            print("Closing anyways")
 
     def is_unique(self, url):
         self.cursor.execute("SELECT * FROM upvoted_posts WHERE url=?", [url])
@@ -118,4 +126,4 @@ class UpvotedPostsTable(object):
                     articles.append(p)
 
         # each data type in its own list
-        return titles, comments, articles
+        return titles, formatted_comments, articles
