@@ -4,7 +4,7 @@ import time
 from praw.models import MoreComments
 from bs4 import BeautifulSoup
 import requests
-from api_config import REDDIT_CLIENT_ID, REDDIT_SECRET, REDDIT_USER_AGENT, REDDIT_USERNAME
+from api_config import REDDIT_CLIENT_ID, REDDIT_SECRET, REDDIT_USER_AGENT, REDDIT_USERNAME, DATA_DIR
 
 
 class RedditBot(object):
@@ -29,44 +29,41 @@ class RedditBot(object):
 
     def collect_upvoted(self):
         # check 100 max but break if a non unique is encountered
-        upv = self.user.upvoted(limit=100)
+        upt = UpvotedPostsTable()
+        upv = self.user.upvoted(limit=1)
         for u in upv:
             _url = u.url
             # check here to verify unique url
             _title = u.title
             _subreddit = str(u.subreddit)
             # organize comments
-            comments = [c.body for c in u.comments.list() if not isinstance(c, MoreComments)]
-            # use \n as split char
-            _comments = '\n'.join(comments)
+            comments = [c.body for c in u.comments if not isinstance(c, MoreComments)]
+            for c in comments:
+                assert type(c) == str
+            _comments = str('\n'.join(comments))
             _is_img, _is_post, _is_article = 0, 0, 0
             if _url.endswith('.jpg') or _url.endswith('.png'):
                 _is_img = 1
-            elif _url.endswith('/'):
+            elif "www.reddit.com" in _url:
                 _is_post = 1
-            elif _url.endswith('.html'):
+            else:
                 _is_article = 1
-
+            assert type(_title) == str
             data = {'url': _url, 'subreddit': _subreddit, 'comments': _comments,
                     'title': _title, 'is_img': _is_img, 'is_post': _is_post, 'is_article': _is_article}
 
-            upt = UpvotedPostsTable()
             if upt.is_unique(url=data['url']):
                 upt.submit_entry(data)
-                print('Adding Reddit URL: ', data['url'])
+                print('Adding: ', data['url'])
             else:
                 break
+        upt.export(out='txt')
 
 
 class UpvotedPostsTable(object):
 
     def __init__(self):
-        # use reddit.db as file across reddit stuff
-        # this method of path selection should change
-        try:
-            self.conn = sqlite3.connect('BackgroundTasks/Reddit/reddit.db')
-        except sqlite3.OperationalError:
-            self.conn = sqlite3.connect('reddit.db')
+        self.conn = sqlite3.connect('BackgroundTasks/Reddit/reddit.db')
         self.cursor = self.conn.cursor()
         self.cursor.execute("CREATE TABLE IF NOT EXISTS upvoted_posts ({})".format(
             "url text NOT NULL, subreddit text, comments text, title text, is_img integer, is_post integer, is_article integer"
@@ -92,7 +89,7 @@ class UpvotedPostsTable(object):
         ), [data['url'], data['subreddit'], data['comments'], data['title'], data['is_img'], data['is_post'], data['is_article']])
         self.conn.commit()
 
-    def export(self):
+    def export(self, out=None):
         # load articles, comments, and titles into useful format
         # prep titles first
         self.cursor.execute("SELECT title FROM upvoted_posts")
@@ -123,7 +120,43 @@ class UpvotedPostsTable(object):
                 paragraphs = soup.find_all('p')
                 paragraphs = [p.text for p in paragraphs]
                 for p in paragraphs:
-                    articles.append(p)
+                    for sentences in p.split('.'):
+                        assert type(sentences) == str
+                        articles.append(sentences+'.')
 
-        # each data type in its own list
-        return titles, formatted_comments, articles
+        if out == 'db':
+            export_db = sqlite3.connect(DATA_DIR+'/raw_text.db')
+            export_cursor = export_db.cursor()
+            export_cursor.execute("CREATE TABLE IF NOT EXISTS raw_text (content text, type text)")
+            export_db.commit()
+            for content, content_type in zip([titles, formatted_comments, articles],
+                                             ['reddit_title', 'reddit_comment', 'reddit_article']):
+                print('Exporting: '+content_type)
+                for text in content:
+                    try:
+                        export_cursor.execute("INSERT INTO raw_text VALUES (?,?)", [text, content_type])
+                        export_db.commit()
+                    except sqlite3.OperationalError:
+                        print("Unable to add: {}".format(text))
+                        continue
+            print('Export Complete')
+        elif out == 'txt':
+            print('Exporting: reddit_comment')
+            with open(DATA_DIR + '/raw_text.txt', 'a') as f:
+                for c in formatted_comments:
+                    c = c.replace('.', '.\n')
+                    c = c.replace('?', '?\n')
+                    c = c.replace('!', '!\n')
+                    for line in c.split('\n'):
+                        try:
+                            line.encode('ascii')
+                        except UnicodeEncodeError:
+                            print('Bad str: '+line)
+                            c = '\n'
+                    # this needs to be tweaked to clean up the data input
+                    f.write(c+'\n')
+                f.close()
+            print('Export Complete')
+        else:
+            # each data type in its own list
+            return titles, formatted_comments, articles
