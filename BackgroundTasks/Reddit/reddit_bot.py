@@ -28,11 +28,25 @@ class RedditBot(object):
         time.sleep(self.FREQUENCY)
         self.startup()
 
-    def archive_(self):
+    def archive_comments(self):
+        #act = AllCommentsTable()
+        samples = []
+        for post in self.bot.subreddit('popular').hot(limit=1):
+            print(post.title)
+            post.comments.replace_more(limit=1)
+            for top_comments in post.comments:
+                for i, sub_comments in enumerate(top_comments.replies):
+                    if i > 0:
+                        break
+                    else:
+                        samples.append((top_comments.body, sub_comments.body))
+        print(samples)
+
+    def archive_upvoted(self):
         # check 100 posts max but break if a non unique is encountered
         upt = UpvotedPostsTable()
         upv = self.user.upvoted(limit=100)
-        with open('data/text/reddit/comments.txt', 'a') as f:
+        with open(DATA_DIR+'/text/reddit/comments.txt', 'a') as f:
             for u in upv:
                 _url = u.url
                 _title = u.title
@@ -68,6 +82,28 @@ class RedditBot(object):
                 else:
                     break
             f.close()
+
+
+class AllCommentsTable(object):
+
+    def __init__(self):
+        self.conn = sqlite3.connect('BackgroundTasks/Reddit/reddit.db')
+        self.cursor = self.conn.cursor()
+        self.cursor.execute("CREATE TABLE IF NOT EXISTS all_comments ({})".format(
+            "url text NOT NULL, comments text"
+        ))
+
+    def is_unique(self, url):
+        self.cursor.execute("SELECT * FROM all_comments WHERE url=?", [url])
+        if len(self.cursor.fetchall()) > 0:
+            return False
+        else:
+            return True
+
+    def submit_entry(self, data):
+        self.cursor.execute("INSERT INTO all_comments ({}) VALUES (?,?)".format("url, comments"),
+                            [data['url'], data['comments']])
+        self.conn.commit()
 
 
 class UpvotedPostsTable(object):
@@ -131,3 +167,8 @@ class UpvotedPostsTable(object):
 
         # each data type in its own list
         return titles, formatted_comments, articles
+
+
+if __name__ == "__main__":
+    rb = RedditBot()
+    rb.archive_comments()

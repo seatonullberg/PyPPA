@@ -11,8 +11,7 @@ use this file to organize initialization such as threading across multiple senso
 for task in BACKGROUND_TASKS:
     task = task()
     Thread(target=task.startup).start()
-'''
+
 # initialize the listener and await vocal command
 listen = InitializeBackgroundListening()
 listen.startup()
-'''

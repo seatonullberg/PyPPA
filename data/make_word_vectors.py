@@ -12,10 +12,16 @@ class MemSafeCorpusIterator(object):
         for fname in os.listdir(self.dirname):
             print('Iterating over: {}'.format(fname))
             for line in open(os.path.join(self.dirname, fname)):
-                if len(line.split()) >= 10:
+                # at least 5 words to a line
+                if len(line.split()) >= 5:
                     formatted_line = []
                     for word in line.split():
-                        word = word.replace(',', '')
+                        # make all inputs lowercase
+                        word = word.lower()
+                        for char in word:
+                            # ensure word has no punctuation attached
+                            if not char.isalpha():
+                                word = word.replace(char, '')
                         formatted_line.append(word)
                     yield formatted_line
 
@@ -28,4 +34,4 @@ model.save('wiki.model')
 print({'Saved at: {}'.format(time.ctime())})
 model = None
 model = gensim.models.word2vec.Word2Vec.load('wiki.model')
-print(model.wv.most_similar('king'))
+print(model.wv.most_similar('food'))
