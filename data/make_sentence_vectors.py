@@ -3,6 +3,11 @@ import numpy as np
 from sklearn.decomposition import PCA
 import pickle
 import os
+from api_config import DATA_DIR
+'''
+TODO:
+***more RAM efficient output system
+'''
 
 
 class MemSafeCorpusIterator(object):
@@ -23,13 +28,13 @@ class MakeSentenceVectors(object):
     def __init__(self, model_fname, corpus):
         self.model = gensim.models.word2vec.Word2Vec.load(model_fname)
         self.model_rows, self.model_columns = np.load(model_fname+'.wv.vectors.npy').shape
-        self.output = []
         self.corpus = corpus
+        self.output = []
         self._transform_sentence()
 
     def _transform_sentence(self):
         # iterate over all entries in corpus
-        for sentence in self.corpus:
+        for i, sentence in enumerate(self.corpus):
             # initialize an array to hold word vectors
             sentence_array = np.ndarray(self.model_columns,)
             for word in sentence:
@@ -55,18 +60,18 @@ class MakeSentenceVectors(object):
             reduced_array = reduced_array[0]
             # shape is now (2,) and will be for all valid inputs
             # add a tuple to the collection for further processing
-            self.output.append((sentence_array, reduced_array))
+            out = (sentence_array, reduced_array)
+            self.output.append(out)
 
     def _pca_reduce(self, arr):
         pca = PCA()
         pca_arr = pca.fit_transform(arr)
         return pca_arr
 
-    def pickle_output(self, fname):
-        pickle.dump(self.output, open(fname, 'wb'))
+    def pickle_output(self):
+        pickle.dump(self.output, open('sentence_vecs.p', 'wb'))
 
 
 if __name__ == "__main__":
-    c = [['the', 'cow', 'jumped', 'over', 'the', 'moon']]
     sv = MakeSentenceVectors(model_fname='wiki.model', corpus=MemSafeCorpusIterator('text/reddit'))
-    sv.pickle_output('pickled_sent_vecs')
+    sv.pickle_output()
