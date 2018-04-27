@@ -27,11 +27,15 @@ class MemSafeCorpusIterator(object):
 
 
 print('Start Time: {}'.format(time.ctime()))
-model = gensim.models.word2vec.Word2Vec(sentences=MemSafeCorpusIterator('text/wiki'), workers=4, size=100)
+model = gensim.models.word2vec.Word2Vec(sentences=MemSafeCorpusIterator('text/wiki'),
+                                        workers=4,
+                                        size=100,
+                                        min_count=10,
+                                        max_vocab_size=250000)
 print('Trained at: {}'.format(time.ctime()))
 print(model.wv.most_similar('food'))
-model.save('wiki.model')
+model.save('wiki250k.model')
 print({'Saved at: {}'.format(time.ctime())})
 model = None
-model = gensim.models.word2vec.Word2Vec.load('wiki.model')
+model = gensim.models.word2vec.Word2Vec.load('wiki250k.model')
 print(model.wv.most_similar('food'))
