@@ -7,11 +7,6 @@ import time
 import scipy.spatial as sp
 
 
-'''
-broken
-'''
-
-
 def sanity_check(s1, s2, model_fname):
     m1 = np.zeros((25, 100))
     m2 = np.zeros((25, 100))
@@ -30,7 +25,7 @@ def sanity_check(s1, s2, model_fname):
             continue
         m2[i, :] = wv
 
-    distance = sp.distance.cdist(m1, m2, 'cosine')
+    distance = sp.distance.cdist(m1, m2, 'euclidean')
     distance = np.nan_to_num(distance, copy=False)
     cum_dist = 0
     for i, dm in enumerate(distance):
