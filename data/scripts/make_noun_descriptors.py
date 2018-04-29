@@ -1,4 +1,4 @@
-from api_config import DATA_DIR
+from private_config import DATA_DIR
 import spacy
 import sqlite3
 import tensorflow as tf

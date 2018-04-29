@@ -1,6 +1,6 @@
 from utils.nlp_utils import convert_sentence_to_matrix
 import scipy.spatial as sp
-from api_config import DATA_DIR
+from private_config import DATA_DIR
 from mannerisms import Mannerisms
 from Speaker import vocalize
 import os
@@ -63,20 +63,38 @@ class PyPPA_ChatPlugin(object):
             vocalize(response_text)
 
     def retrieve_response(self, table_name):
+        # pulling at random one of the highest frequency would seem more natural
         conn = sqlite3.connect(DATA_DIR+'/conversational_text/conversational_text.db')
         cursor = conn.cursor()
         try:
-            cursor.execute('SELECT response FROM {} ORDER BY frequency DESC'.format(table_name))
+            cursor.execute('SELECT * FROM {} ORDER BY frequency DESC'.format(table_name))
         except sqlite3.OperationalError:
             # if none table gets passed in this will happen
             return 'I could not understand that'
-        response = cursor.fetchall()
-        print(response)
-        response = response[0][0]
+        result = cursor.fetchall()
+
+        # allow for some randomness when there are multiple frequent responses
+        top_responses = []
+        if len(result) == 1:
+            top_responses.append(result[0][0])
+        else:
+            for i, r in enumerate(result):
+                # compare frequency count and stop when a lower frequency is hit
+                # prevent indexing issue
+                if i == 0:
+                    top_responses.append(r[0])
+                elif r[1] < result[i-1][1]:
+                    break
+                else:
+                    top_responses.append(r[0])
+
+        seed = np.random.randint(0, len(top_responses))
+        response = top_responses[seed]
         conn.commit()
         cursor.close()
         conn.close()
-        print(response)
+        print(top_responses)
+        print('PyPPA: '+response)
         return response
 
     def end_chat_session(self):

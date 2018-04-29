@@ -9,7 +9,7 @@ import re
 import os
 import pickle
 from Crypto.Hash import SHA256
-from api_config import REDDIT_CLIENT_ID, REDDIT_SECRET, REDDIT_USER_AGENT, REDDIT_USERNAME, DATA_DIR
+from private_config import REDDIT_CLIENT_ID, REDDIT_SECRET, REDDIT_USER_AGENT, REDDIT_USERNAME, DATA_DIR
 
 
 class RedditBot(object):
@@ -63,10 +63,18 @@ class RedditBot(object):
         subreddits = ['Politics', 'news', 'Vent', 'askreddit']
         possible_tags = ['[NSFW]', '[nsfw]', '[Serious]', '[serious]', '[SERIOUS]']
         samples = []
+        past_urls = [url.replace('\n', '') for url in open('BackgroundTasks/Reddit/url_log.txt', 'r').readlines()]
+        current_urls = []
         # iterate over a selection of subreddits with favorable title/comment structure
-        print('Archiving conversational text from: {}'.format(subreddits))
         for sub in subreddits:
-            for post in self.bot.subreddit(sub).new(limit=10):
+            print('Archiving conversational text from: r/{}'.format(sub))
+            for post in self.bot.subreddit(sub).hot(limit=100):
+                # don't archive posts that have already been accounted for
+                if post.url in past_urls:
+                    continue
+                else:
+                    print(post.title)
+                    current_urls.append(post.url)
                 # remove stickied posts like mod posts
                 if post.stickied:
                     continue
@@ -90,7 +98,9 @@ class RedditBot(object):
                     comment = comment.split('\n')[0]
                     samples.append((title, comment))
         for t, r in samples:
-            print(t)
+            # this is not clean but too bad
+            if r == '[deleted]' or r == '[removed]':
+                continue
             h = SHA256.new()
             h.update(t.encode('utf-8'))
             h = ''.join([char for char in h.hexdigest() if char.isalpha()][:25])
@@ -103,6 +113,12 @@ class RedditBot(object):
                 pickle.dump(sm, open(title_pickle_fname, 'wb'))
             # add the entries to relevant table
             self._store_conversational_text(table_name=h, response_text=r)
+        # this is not the best way to do this but i can alter later
+        with open('BackgroundTasks/Reddit/url_log.txt', 'w') as f:
+            for url in current_urls:
+                f.write(url+'\n')
+            for url in past_urls[:200*len(subreddits)]:
+                f.write(url+'\n')
         print('Completed conversational archiving with {} additions or updates'.format(len(samples)))
 
     def interests_archive(self):

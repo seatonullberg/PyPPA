@@ -1,6 +1,6 @@
 import gensim
 import numpy as np
-from api_config import DATA_DIR
+from private_config import DATA_DIR
 import scipy.spatial as sp
 
 

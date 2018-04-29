@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import json
 from Speaker import vocalize
 from floating_listener import listen_and_convert
-from api_config import DARK_SKY_KEY, GEONAMES_USERNAME
+from private_config import DARK_SKY_KEY, GEONAMES_USERNAME
 from mannerisms import Mannerisms
 
 '''

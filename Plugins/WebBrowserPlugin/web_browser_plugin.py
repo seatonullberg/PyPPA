@@ -8,7 +8,7 @@ from Speaker import vocalize
 from floating_listener import listen_and_convert
 from mannerisms import Mannerisms
 from Plugins.WebBrowserPlugin.google_search_beta import GoogleSearchBeta
-from api_config import NETFLIX_EMAIL, NETFLIX_PASSWORD, NETFLIX_USER, FIREFOX_PROFILE_PATH
+from private_config import NETFLIX_EMAIL, NETFLIX_PASSWORD, NETFLIX_USER, FIREFOX_PROFILE_PATH
 '''
 TODO:
 - add 'and' modifier

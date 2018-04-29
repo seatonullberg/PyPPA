@@ -3,7 +3,7 @@ import time
 import json
 from Speaker import vocalize
 from floating_listener import listen_and_convert
-from api_config import NEWS_API_KEY
+from private_config import NEWS_API_KEY
 from Plugins.NewsPlugin.open_article_beta import OpenArticleBeta
 
 '''

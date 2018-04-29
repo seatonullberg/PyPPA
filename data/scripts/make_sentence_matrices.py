@@ -2,7 +2,7 @@ import gensim
 import numpy as np
 import os
 import pickle
-from api_config import DATA_DIR
+from private_config import DATA_DIR
 import time
 import scipy.spatial as sp
 
