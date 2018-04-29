@@ -10,7 +10,7 @@ def listen_and_convert():
     with sr.Microphone() as source:
         r.adjust_for_ambient_noise(source)
         print('Speak: ')
-        audio = r.listen(source)
+        audio = r.listen(source, timeout=5)
     command = ''
     try:
         command = r.recognize_google(audio_data=audio)

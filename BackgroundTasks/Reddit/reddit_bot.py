@@ -15,7 +15,7 @@ from api_config import REDDIT_CLIENT_ID, REDDIT_SECRET, REDDIT_USER_AGENT, REDDI
 class RedditBot(object):
 
     def __init__(self):
-        self.FREQUENCY = 43200   # repeat every 12 hours
+        self.FREQUENCY = 3600   # repeat every hour
         self.bot = praw.Reddit(client_id=REDDIT_CLIENT_ID,
                                client_secret=REDDIT_SECRET,
                                user_agent=REDDIT_USER_AGENT)
@@ -64,6 +64,7 @@ class RedditBot(object):
         possible_tags = ['[NSFW]', '[nsfw]', '[Serious]', '[serious]', '[SERIOUS]']
         samples = []
         # iterate over a selection of subreddits with favorable title/comment structure
+        print('Archiving conversational text from: {}'.format(subreddits))
         for sub in subreddits:
             for post in self.bot.subreddit(sub).new(limit=10):
                 # remove stickied posts like mod posts
@@ -89,6 +90,7 @@ class RedditBot(object):
                     comment = comment.split('\n')[0]
                     samples.append((title, comment))
         for t, r in samples:
+            print(t)
             h = SHA256.new()
             h.update(t.encode('utf-8'))
             h = ''.join([char for char in h.hexdigest() if char.isalpha()][:25])
@@ -101,6 +103,7 @@ class RedditBot(object):
                 pickle.dump(sm, open(title_pickle_fname, 'wb'))
             # add the entries to relevant table
             self._store_conversational_text(table_name=h, response_text=r)
+        print('Completed conversational archiving with {} additions or updates'.format(len(samples)))
 
     def interests_archive(self):
         '''
