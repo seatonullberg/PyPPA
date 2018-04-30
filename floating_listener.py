@@ -2,6 +2,7 @@ import speech_recognition as sr
 import pyaudio
 import struct
 import wave
+import os
 import numpy as np
 
 CHUNK = 4000
@@ -121,5 +122,5 @@ def recognize(fname):
     except sr.UnknownValueError:
         print('unknown value error')
         command = None
-
+    os.remove(WAVE_OUTPUT_FILENAME)
     return command
