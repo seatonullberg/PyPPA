@@ -1,8 +1,8 @@
-import speech_recognition as sr
 import time
 from Speaker import vocalize
-from config import LISTENER_ENERGY_THRESHOLD, PLUGIN_LIST
+from config import PLUGIN_LIST
 from mannerisms import Mannerisms
+from floating_listener import listen_and_convert
 
 
 def update_plugins():
@@ -13,70 +13,47 @@ def update_plugins():
 
 
 class InitializeBackgroundListening(object):
-    '''
-    Class to be used on open or on sleep
-    listens silently for an attention trigger with the sphinx listener
-    then switches to the google cloud listener for actual command interpretation
-    '''
 
     def __init__(self):
         self.triggers = ['hey Auto', 'hey auto', 'wake up', 'Auto', 'auto']
-        self.r = sr.Recognizer()
-        self.r.dynamic_energy_threshold = False
-        self.r.energy_threshold = LISTENER_ENERGY_THRESHOLD
         update_plugins()
 
     def startup(self):
+        '''
+        listens for trigger
+        :return: None, calls collect_command to collect next incoming audio
+        '''
         while True:
-            with sr.Microphone() as source:
-                self.r.adjust_for_ambient_noise(source)
+            recorded_input = listen_and_convert(pre_buffer=None)
+            for trigger in self.triggers:
                 try:
-                    audio = self.r.listen(source, timeout=10)
-                except sr.WaitTimeoutError:
-                    print('timeout')
-                else:
-                    try:
-                        command = self.r.recognize_google(audio_data=audio)
-                    except sr.UnknownValueError:
-                        print('unknown value error')
-                    else:
-                        print('background_listener heard: ' + command)
-                        for trigger in self.triggers:
-                            if trigger in command:
-                                vocalize(Mannerisms('await_command', None).final_response)
-                                self.collect_command()
+                    if trigger in recorded_input:
+                        vocalize(Mannerisms('await_command', None).final_response)
+                        self.collect_and_process()
+                except TypeError:
+                    # when the recorded input is None
+                    continue
 
-    def collect_command(self):
-        with sr.Microphone() as source:
-            self.r.adjust_for_ambient_noise(source)
-            print('Speak a command: ')
-            audio = self.r.listen(source, timeout=5)
-            try:
-                command = self.r.recognize_google(audio_data=audio)
-            except sr.UnknownValueError:
-                vocalize(Mannerisms('unknown_audio', None).final_response)
-            except sr.RequestError as e:
-                vocalize(Mannerisms('error', None).final_response)
-                print("Google Cloud Error; {0}".format(e))
-            else:
-                print('passed command: ' + command.lower())
-                self.process_command(command.lower())
+    def collect_and_process(self):
+        recorded_input = listen_and_convert(pre_buffer=10)
+        try:
+            recorded_input = recorded_input.lower()
+            print('collect_and_process heard: {}'.format(recorded_input))
+        except TypeError:
+            # when recorded is None
+            print('No command was recorded. Going to sleep')
+            return
 
-    def process_command(self, command):
-        '''
-        :param command: (str) string form of audio command given by user
-        :return: None
-        '''
         for plugin in PLUGIN_LIST:
             # check all installed modules
-            plugin = plugin(command)
+            plugin = plugin(recorded_input)
             for command_hook in plugin.COMMAND_HOOK_DICT:
                 for spelling in plugin.COMMAND_HOOK_DICT[command_hook]:
-                    if spelling in command:
+                    if spelling in recorded_input:
                         # carry out request and go back to listening
                         plugin.function_handler(command_hook, spelling)
                         while plugin.isBlocking:
                             time.sleep(0.5)
                         return
         # if all fail
-        vocalize(Mannerisms('unknown_command', {'command': command}).final_response)
+        vocalize(Mannerisms('unknown_command', {'command': recorded_input}).final_response)

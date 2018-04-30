@@ -120,6 +120,7 @@ class RedditBot(object):
             for url in past_urls[:200*len(subreddits)]:
                 f.write(url+'\n')
         print('Completed conversational archiving with {} additions or updates'.format(len(samples)))
+        print('Completed at: '+str(time.ctime()))
 
     def interests_archive(self):
         '''

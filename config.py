@@ -7,8 +7,6 @@ from Plugins.ChatPlugin.chat_plugin import PyPPA_ChatPlugin
 # background tasks
 from BackgroundTasks.Reddit.reddit_bot import RedditBot
 
-LISTENER_ENERGY_THRESHOLD = 3000
-
 # include all desired module classes
 PLUGIN_LIST = [PyPPA_WebBrowserPlugin, PyPPA_WeatherPlugin, PyPPA_TeacherPlugin, PyPPA_NewsPlugin, PyPPA_ChatPlugin]
 
