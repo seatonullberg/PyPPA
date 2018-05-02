@@ -68,7 +68,7 @@ class RedditBot(object):
         # iterate over a selection of subreddits with favorable title/comment structure
         for sub in subreddits:
             print('Archiving conversational text from: r/{}'.format(sub))
-            for post in self.bot.subreddit(sub).hot(limit=100):
+            for post in self.bot.subreddit(sub).hot(limit=25):
                 # don't archive posts that have already been accounted for
                 if post.url in past_urls:
                     continue
