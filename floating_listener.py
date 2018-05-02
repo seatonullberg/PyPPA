@@ -2,13 +2,25 @@ import speech_recognition as sr
 import pyaudio
 import struct
 import wave
+import os
 import numpy as np
+from ctypes import *
 
 CHUNK = 4000
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100
 WAVE_OUTPUT_FILENAME = "user_input.wav"
+
+
+# remove pesky alsa warnings
+def py_error_handler(filename, line, function, err, fmt):
+    pass
+ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
+c_error_handler = ERROR_HANDLER_FUNC(py_error_handler)
+asound = cdll.LoadLibrary('libasound.so')
+# Set error handler
+asound.snd_lib_error_set_handler(c_error_handler)
 
 
 def listen_and_convert(threshold=0.1, pre_buffer=None, post_buffer=1, max_dialogue=10):
@@ -121,5 +133,5 @@ def recognize(fname):
     except sr.UnknownValueError:
         print('unknown value error')
         command = None
-
+    os.remove(WAVE_OUTPUT_FILENAME)
     return command

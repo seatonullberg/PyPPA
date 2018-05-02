@@ -39,7 +39,7 @@ class InitializeBackgroundListening(object):
         try:
             recorded_input = recorded_input.lower()
             print('collect_and_process heard: {}'.format(recorded_input))
-        except TypeError:
+        except AttributeError:
             # when recorded is None
             print('No command was recorded. Going to sleep')
             return

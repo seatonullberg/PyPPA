@@ -63,7 +63,7 @@ class RedditBot(object):
         subreddits = ['Politics', 'news', 'Vent', 'askreddit']
         possible_tags = ['[NSFW]', '[nsfw]', '[Serious]', '[serious]', '[SERIOUS]']
         samples = []
-        past_urls = [url.replace('\n', '') for url in open('BackgroundTasks/Reddit/url_log.txt', 'r').readlines()]
+        past_urls = [url.replace('\n', '') for url in open('BackgroundTasks/Reddit/title_log.txt', 'r').readlines()]
         current_urls = []
         # iterate over a selection of subreddits with favorable title/comment structure
         for sub in subreddits:
@@ -114,10 +114,8 @@ class RedditBot(object):
             # add the entries to relevant table
             self._store_conversational_text(table_name=h, response_text=r)
         # this is not the best way to do this but i can alter later
-        with open('BackgroundTasks/Reddit/url_log.txt', 'w') as f:
+        with open('BackgroundTasks/Reddit/title_log.txt', 'a') as f:
             for url in current_urls:
-                f.write(url+'\n')
-            for url in past_urls[:200*len(subreddits)]:
                 f.write(url+'\n')
         print('Completed conversational archiving with {} additions or updates'.format(len(samples)))
         print('Completed at: '+str(time.ctime()))
@@ -128,9 +126,3 @@ class RedditBot(object):
         :return: None
         '''
         pass
-
-
-if __name__ == "__main__":
-    rb = RedditBot()
-    rb.title_comment_archive()
-
