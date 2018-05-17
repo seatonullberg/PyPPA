@@ -22,26 +22,6 @@ def main():
     ChatModelConstructor(args)
 
 
-def transform_sentence(output_path, sentence):
-    '''
-    Convert a sentence into a cluster id representation.
-        - each word is replaced with its cluster ID and joined by '_'
-    Intermediary step used by the iterator to transform a sentence into a token that word2vec can work with.
-    :return: tokenized_sentence (str)
-    '''
-    sentence = sentence.split()
-    cluster_dict = pickle.load(open(output_path + '/cluster_dict.p', 'rb'))
-    clusters = []
-    for word in sentence:
-        try:
-            cluster_id = str(cluster_dict[word])
-        except KeyError:
-            cluster_id = '-1'
-        clusters.append(cluster_id)
-    tokenized_sentence = '_'.join(clusters)
-    return tokenized_sentence
-
-
 class MemSafeIterator(object):
 
     def __init__(self, data_dir, output_dir, mode):
@@ -50,24 +30,19 @@ class MemSafeIterator(object):
         self.mode = mode
 
     def __iter__(self):
-        for fname in os.listdir(self.data_dir):
+        files_to_parse = []
+        if self.mode == 'word':
+            files_to_parse = [f for f in os.listdir(self.data_dir) if not f.startswith('tokenized_')]
+        elif self.mode == 'sentence':
+            files_to_parse = [f for f in os.listdir(self.data_dir) if f.startswith('tokenized_')]
+        else:
+            print("Error: Unrecognized iteration mode '{}'".format(self.mode))
+            exit()
+        for fname in files_to_parse:
             print('Iterating over: {}'.format(fname))
-            tokenized_sentences = []
             for line in tqdm(open(os.path.join(self.data_dir, fname), 'r').readlines(),
                              total=len(open(os.path.join(self.data_dir, fname), 'r').readlines())):
-                if self.mode == 'word':
-                    yield line.split()
-                elif self.mode == 'sentence':
-                    # if the line is just a newline char then yield what has been added and reset
-                    if line == '' or line == '\n':
-                        yield tokenized_sentences
-                        tokenized_sentences = []
-                    else:
-                        cluster_token = transform_sentence(sentence=line, output_path=self.output_dir)
-                        tokenized_sentences.append(cluster_token)
-                else:
-                    print('Error: unknown iterator mode')
-                    exit()
+                yield line.split()
 
 
 class ChatModelConstructor(object):
@@ -94,15 +69,15 @@ class ChatModelConstructor(object):
         MIN_COUNT = 5
         MAX_VOCAB = 250000
         print('Constructing new word2vec model...\n')
-        model = gensim.models.word2vec.Word2Vec(sentences=MemSafeIterator(mode='word',
-                                                                          data_dir=self.data_dir,
-                                                                          output_dir=self.output_path),
+        model = gensim.models.word2vec.Word2Vec(sentences=MemSafeIterator(data_dir=self.data_dir,
+                                                                          output_dir=self.output_path,
+                                                                          mode='word'),
                                                 workers=WORKERS,
                                                 size=VEC_SIZE,
                                                 min_count=MIN_COUNT,
                                                 max_vocab_size=MAX_VOCAB)
-        model.save(self.output_path+'/word.model')
-        self.word_model = self.output_path+'/word.model'
+        model.save(os.path.join(self.output_path, 'word.model'))
+        self.word_model = os.path.join(self.output_path, 'word.model')
         print('\nSaved new word2vec model.\n')
         self.assign_word_clusters()
 
@@ -121,15 +96,40 @@ class ChatModelConstructor(object):
         only_vecs = copy.deepcopy(word_df)
         only_vecs = only_vecs.drop(['word'], axis=1)
         print('Initiating tSNE and clustering...\n')
-        tsne = MulticoreTSNE(n_jobs=4)
+        tsne = MulticoreTSNE(n_jobs=4, perplexity=15)
         tsne_vecs = tsne.fit_transform(only_vecs)
-        dbscan = DBSCAN()
+        dbscan = DBSCAN(eps=0.75)
         labels = dbscan.fit_predict(tsne_vecs)
         word_cluster_dict = {}
         for index, row in word_df.iterrows():
             word_cluster_dict[row['word']] = labels[index]
-        pickle.dump(word_cluster_dict, open(self.output_path+'/cluster_dict.p', 'wb'))
+        pickle.dump(word_cluster_dict, open(os.path.join(self.output_path, 'cluster_dict.p'), 'wb'))
+        self.tokenization_preprocessor()
         self.build_sentence_model()
+
+    def tokenization_preprocessor(self):
+        cluster_dict = pickle.load(open(os.path.join(self.output_path, 'cluster_dict.p'), 'rb'))
+        for fname in os.listdir(self.data_dir):
+            print('Preprocessing {}'.format(fname))
+            tokenized_file = open(os.path.join(self.data_dir, 'tokenized_'+fname), 'w')
+            with open(os.path.join(self.data_dir, fname)) as f:
+                formatted_line = []
+                for line in tqdm(f.readlines(), total=len(f.readlines()), unit='lines'):
+                    if line == '' or line == '\n':
+                        tokenized_file.write(line)
+                        tokenized_file.write(' '.join(formatted_line))
+                        formatted_line = []
+                    else:
+                        clusters = []
+                        for word in line.split():
+                            try:
+                                cluster_id = str(cluster_dict[word])
+                            except KeyError:
+                                cluster_id = '-1'
+                            clusters.append(cluster_id)
+                        token = '_'.join(clusters)
+                        formatted_line.append(token)
+            tokenized_file.close()
 
     def build_sentence_model(self):
         '''
@@ -144,14 +144,14 @@ class ChatModelConstructor(object):
         MIN_COUNT = 2
         MAX_VOCAB = 9999999
         print('Constructing new word2vec based sentence model...\n')
-        model = gensim.models.word2vec.Word2Vec(sentences=MemSafeIterator(mode='sentence',
-                                                                          data_dir=self.data_dir,
-                                                                          output_dir=self.output_path),
+        model = gensim.models.word2vec.Word2Vec(sentences=MemSafeIterator(data_dir=self.data_dir,
+                                                                          output_dir=self.output_path,
+                                                                          mode='sentence'),
                                                 workers=WORKERS,
                                                 size=VEC_SIZE,
                                                 min_count=MIN_COUNT,
                                                 max_vocab_size=MAX_VOCAB)
-        model.save(self.output_path + '/sentence.model')
+        model.save(os.path.join(self.output_path, 'sentence.model'))
         print('Saved new sentence model.\n')
 
 
