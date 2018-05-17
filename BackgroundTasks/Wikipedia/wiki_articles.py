@@ -28,7 +28,11 @@ class WikiCollector(object):
                 article = wikipedia.page(title=title)
             except wikipedia.DisambiguationError as e:
                 # occurs when multiple articles have same title
-                seed = np.random.randint(0, len(e.options))
+                try:
+                    seed = np.random.randint(0, len(e.options))
+                except ValueError:
+                    # caused when there are no options
+                    continue
                 try:
                     article = wikipedia.page(title=e.options[seed])
                 except wikipedia.DisambiguationError:
@@ -37,10 +41,20 @@ class WikiCollector(object):
                 except wikipedia.PageError:
                     print('Could not find a page for {}'.format(title))
                     continue
+                except wikipedia.WikipediaException:
+                    # wikipedia.exceptions.WikipediaException: An unknown error occured:
+                    # "The "search" parameter must be set.". Please report it on GitHub!
+                    continue
             except wikipedia.PageError:
                 print('Could not find a page for {}'.format(title))
                 continue
+            except wikipedia.WikipediaException:
+                # wikipedia.exceptions.WikipediaException: An unknown error occured:
+                # "The "search" parameter must be set.". Please report it on GitHub!
+                continue
             if article.title in past_titles:
+                continue
+            if article.title.startswith('List of'):
                 continue
             lines = [l for l in article.content.split('\n') if len(l.split()) > 0]
             forbidden_sections = ['References', 'External links', 'See also']

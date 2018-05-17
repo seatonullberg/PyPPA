@@ -32,6 +32,7 @@ class RedditBot(object):
         time.sleep(self.FREQUENCY)
         self.startup()
 
+    # TODO: remake this in conjunction with title_comment_archive
     def _store_conversational_text(self, table_name, response_text):
         '''
         Adds conversational style text to the conversational db for future processing
@@ -55,15 +56,12 @@ class RedditBot(object):
         cursor.close()
         conn.close()
 
-    def title_comment_archive(self):
-        '''
-        Store post titles and their top comments to simulate conversational text
-        :return: None (save conversational text to .db)
-        '''
+    # TODO: remake this after cluster matrices are created and tested
+    def _archive_conversational_comments(self):
         subreddits = ['Politics', 'news', 'Vent', 'askreddit']
         possible_tags = ['[NSFW]', '[nsfw]', '[Serious]', '[serious]', '[SERIOUS]']
         samples = []
-        past_urls = [url.replace('\n', '') for url in open('BackgroundTasks/Reddit/title_log.txt', 'r').readlines()]
+        past_urls = [url.replace('\n', '') for url in open('BackgroundTasks/Reddit/url_log.txt', 'r').readlines()]
         current_urls = []
         # iterate over a selection of subreddits with favorable title/comment structure
         for sub in subreddits:
@@ -120,9 +118,76 @@ class RedditBot(object):
         print('Completed conversational archiving with {} additions or updates'.format(len(samples)))
         print('Completed at: '+str(time.ctime()))
 
-    def interests_archive(self):
+    def archive_interests(self):
         '''
         Use this later to do semantic analysis on posts I upvote
         :return: None
         '''
         pass
+
+    def archive_all_comments(self):
+        '''
+        get the 100 hottest posts on r/popular and store every comment
+        :return: None
+        '''
+        past_urls = [url.replace('\n', '') for url in open('BackgroundTasks/Reddit/all_comments_url_log.txt', 'r').readlines()]
+        for post in self.bot.subreddit('popular').hot(limit=100):
+            # don't archive posts that have already been accounted for
+            if post.url in past_urls:
+                continue
+            else:
+                print(post.title)
+                # add new urls to old url list
+                with open('BackgroundTasks/Reddit/all_comments_url_log.txt', 'a') as f:
+                    f.write(post.url+'\n')
+
+                # reveal all comments in post
+                post.comments.replace_more(limit=None)
+                # parse through top comments
+                for top_comment in post.comments:
+                    if top_comment.author == 'AutoModerator':
+                        continue
+                    comment = top_comment.body
+                    if comment == '[deleted]' or comment == '[removed]':
+                        continue
+
+                    # remove content between parentheses
+                    comment = re.sub(r'\([^()]*\)', '', comment)
+                    # remove non ascii
+                    comment = re.sub(r'[^\x00-\x7f]', '', comment)
+                    # remove punctuation aside from endings
+                    comment = ''.join([char for char in comment if char.isalpha() or char in ['!', '?', '.', ' ']])
+                    # split on end punctuation
+                    comment = re.split('(?<=[.!?]) +', comment)
+                    # now remove the end punctuation
+                    comment = [c.replace('!', '').replace('?', '').replace('.', '') for c in comment]
+                    # keep sentences that start with uppercase letter
+                    try:
+                        comment = [c for c in comment if c[0].isupper()]
+                    except IndexError:
+                        comment = ''
+                    # keep sentences of 2 words or greater
+                    comment = [c for c in comment if len(c.split()) > 1]
+                    # make all lowercase
+                    comment = [c.lower() for c in comment]
+                    # remove links
+                    comment = [c for c in comment if not c.startswith('http')]
+                    # add cleaned comment to list
+                    # write each comment to file and split with new lines
+                    file_id = len(os.listdir(DATA_DIR+'/text/reddit'))
+                    if file_id == 0:
+                        file_id = 1
+                    with open(DATA_DIR+'/text/reddit/comments{}'.format(file_id), 'a') as f:
+                        for c in comment:
+                            f.write(c+'\n')
+                        f.write('\n')
+                        # after addition, if the file is too large, create a new blank one that will be opened next
+                        if os.path.getsize(DATA_DIR+'/text/reddit/comments{}'.format(file_id)) > 1e9:
+                            new_file = open(DATA_DIR+'/text/reddit/comments{}'.format(file_id+1), 'a')
+                            new_file.close()
+                            print('NEWFILE')
+
+
+if __name__ == "__main__":
+    rb = RedditBot()
+    rb.archive_all_comments()

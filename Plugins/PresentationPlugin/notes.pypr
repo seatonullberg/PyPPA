@@ -1,0 +1,31 @@
+PyPPAPresentation File (.pypr) Notes:
+
+TAGS:
+{META}
+* used to provide information on where presentation resources are stored and how to present
+
+
+<frame>
+* instantiate a blank frame similar to a PowerPoint slide
+* all other tags must be wrapped in an instance of <frame></frame>
+* <frame> cannot wrap itself
+-options:
+    -duration: (int) how long to display the current frame in seconds
+        -default: (None) display infinitely long
+
+<voice>
+* a selection of text for PyPPA to speak
+-options:
+    -kind: ('wav', 'txt', 'raw') how to interpret content inside of <voice></voice>
+        - 'wav' is used when the content is a path to a wav file
+        - 'txt' is used when the content is a path to a text file
+        - 'raw' is used when the content is plain text
+        -default: 'raw'
+
+<html>
+* element used to define the display in the <frame>
+-options:
+    -kind: ('path', 'raw') how to interpret content inside of <html></html>
+        - 'path' is used when the content is a path to an existing html file
+        - 'raw' is used when the content should be interpreted as html directly
+        -default: 'raw'
