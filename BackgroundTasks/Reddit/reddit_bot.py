@@ -3,13 +3,11 @@ import sqlite3
 import praw
 import time
 from praw.models import MoreComments
-from bs4 import BeautifulSoup
-import requests
 import re
 import os
 import pickle
 from Crypto.Hash import SHA256
-from private_config import REDDIT_CLIENT_ID, REDDIT_SECRET, REDDIT_USER_AGENT, REDDIT_USERNAME, DATA_DIR
+from private_config import REDDIT_USERNAME, REDDIT_USER_AGENT, REDDIT_SECRET, REDDIT_CLIENT_ID, DATA_DIR, BACKGROUND_DIR
 
 
 class RedditBot(object):
@@ -55,6 +53,7 @@ class RedditBot(object):
         conn.commit()
         cursor.close()
         conn.close()
+
 
     # TODO: remake this after cluster matrices are created and tested
     def _archive_conversational_comments(self):
@@ -118,6 +117,7 @@ class RedditBot(object):
         print('Completed conversational archiving with {} additions or updates'.format(len(samples)))
         print('Completed at: '+str(time.ctime()))
 
+
     def archive_interests(self):
         '''
         Use this later to do semantic analysis on posts I upvote
@@ -130,7 +130,8 @@ class RedditBot(object):
         get the 100 hottest posts on r/popular and store every comment
         :return: None
         '''
-        past_urls = [url.replace('\n', '') for url in open('BackgroundTasks/Reddit/all_comments_url_log.txt', 'r').readlines()]
+        past_urls_path = [BACKGROUND_DIR, 'Reddit', 'all_comments_url_log.txt']
+        past_urls = [url.replace('\n', '') for url in open(os.path.join('', *past_urls_path), 'r').readlines()]
         for post in self.bot.subreddit('popular').hot(limit=100):
             # don't archive posts that have already been accounted for
             if post.url in past_urls:
@@ -138,7 +139,7 @@ class RedditBot(object):
             else:
                 print(post.title)
                 # add new urls to old url list
-                with open('BackgroundTasks/Reddit/all_comments_url_log.txt', 'a') as f:
+                with open(os.path.join('', *past_urls_path), 'a') as f:
                     f.write(post.url+'\n')
 
                 # reveal all comments in post

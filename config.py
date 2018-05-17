@@ -6,9 +6,10 @@ from Plugins.NewsPlugin.news_plugin import PyPPA_NewsPlugin
 from Plugins.ChatPlugin.chat_plugin import PyPPA_ChatPlugin
 # background tasks
 from BackgroundTasks.Reddit.reddit_bot import RedditBot
+from BackgroundTasks.Wikipedia.wiki_articles import WikiCollector
 
 # include all desired module classes
 PLUGIN_LIST = [PyPPA_WebBrowserPlugin, PyPPA_WeatherPlugin, PyPPA_TeacherPlugin, PyPPA_NewsPlugin, PyPPA_ChatPlugin]
 
 # include all desired background tasks
-BACKGROUND_TASKS = [RedditBot]
+BACKGROUND_TASKS = [RedditBot, WikiCollector]

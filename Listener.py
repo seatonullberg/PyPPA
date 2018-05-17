@@ -12,7 +12,7 @@ def update_plugins():
     print('Updates Complete')
 
 
-class InitializeBackgroundListening(object):
+class BackgroundListener(object):
 
     def __init__(self):
         self.triggers = ['hey Auto', 'hey auto', 'wake up', 'Auto', 'auto']

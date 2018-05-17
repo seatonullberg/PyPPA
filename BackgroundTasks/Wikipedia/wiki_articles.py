@@ -2,6 +2,8 @@ import wikipedia
 import time
 import numpy as np
 import re
+from private_config import BACKGROUND_DIR
+import os
 
 
 class WikiCollector(object):
@@ -21,8 +23,10 @@ class WikiCollector(object):
         self.startup()
 
     def collect_articles(self):
+        title_log_path = [BACKGROUND_DIR, 'Wikipedia', 'title_log.txt']
+        wiki_sections_path = [BACKGROUND_DIR, 'Wikipedia', 'wiki_sections.txt']
         while True:
-            past_titles = [t.replace('\n','') for t in open('title_log.txt', 'r').readlines()]
+            past_titles = [t.replace('\n', '') for t in open(os.path.join('', *title_log_path), 'r').readlines()]
             title = wikipedia.random()
             try:
                 article = wikipedia.page(title=title)
@@ -90,17 +94,12 @@ class WikiCollector(object):
                     line = [l.lower() for l in line]
                     section_content[current_section] = line
 
-            with open('wiki_sections.txt', 'a') as f:
+            with open(os.path.join('', *wiki_sections_path), 'a') as f:
                 for sections in section_content:
                     for sentences in section_content[sections]:
                         f.write(sentences+'\n')
                     f.write('\n')
-            with open('title_log.txt', 'a') as f:
+            with open(os.path.join('', *title_log_path), 'a') as f:
                 f.write(article.title+'\n')
 
             print(article.title)
-
-
-if __name__ == "__main__":
-    w = WikiCollector()
-    w.startup()
