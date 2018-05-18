@@ -3,6 +3,10 @@ import cv2
 import os
 from private_config import DATA_DIR
 import pickle
+from threading import Thread
+# interface with the plugin to execute actionable commands
+# send a string command directly to be executed upon realization of visual cue
+# from Plugins.WatcherPlugin.watcher_plugin import PyPPA_WatcherPlugin
 
 
 class BackgroundWatcher(object):
@@ -28,6 +32,7 @@ class BackgroundWatcher(object):
             rgb_small_frame = small_frame[:, :, ::-1]
             # Only process every other frame of video to save time
             if process_this_frame:
+                self.threader(rgb_small_frame)
                 # Find all the faces and face encodings in the current frame of video
                 face_locations = face_recognition.face_locations(rgb_small_frame)
                 face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
@@ -38,8 +43,8 @@ class BackgroundWatcher(object):
                     name = "Unknown"
                     for key in profile_dict:
                         # Compare known embeddings to new embedding
-                        matches = face_recognition.compare_faces(profile_dict[key][1], face_encoding)
-                        if matches:
+                        matches = face_recognition.compare_faces([profile_dict[key][1]], face_encoding)
+                        if True in matches:
                             name = profile_dict[key][0]
                             break
                     face_names.append(name)
@@ -63,7 +68,7 @@ class BackgroundWatcher(object):
                 cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
 
             # Display the resulting image
-            cv2.imshow('Video', frame)
+            cv2.imshow('PyPPA Vision', frame)
 
             # Hit 'q' on the keyboard to quit!
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -72,6 +77,46 @@ class BackgroundWatcher(object):
         # Release handle to the webcam
         video_capture.release()
         cv2.destroyAllWindows()
+
+    def threader(self, frame):
+        # add other analysis functions later
+        for analyze in [self.archive_faces]:
+            Thread(target=analyze, args=[frame]).start()
+
+    def archive_faces(self, frame):
+        '''
+        Pickle a list of images of faces, their embeddings, and names if known for scan_faces to pull from
+        :param frame: Video freeze frame from cv2 VideoCapture
+        :return: None (produce a pickle file)
+        '''
+        face_locations = []
+        face_encodings = []
+        faces = []
+        face_locations = face_recognition.face_locations(frame)
+        face_encodings = face_recognition.face_encodings(frame, face_locations)
+        profile_dict = FacialProfile().__dict__()
+        # the face locations are a tuple of (top, right, bottom, left)
+        for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
+            name = None
+            # resize the location box
+            top *= 4
+            right *= 4
+            bottom *= 4
+            left *= 4
+            image = frame[bottom:top, left:right]
+            for key in profile_dict:
+                # Compare known encodings to new encodings
+                matches = face_recognition.compare_faces([profile_dict[key][1]], face_encoding)
+                if True in matches:
+                    name = profile_dict[key][0]
+                    break
+            faces.append({'name': name,
+                          'encoding': face_encoding,
+                          'image': image})
+        archived_faces_path = [DATA_DIR, 'facial_profiles', 'archived_faces.p']
+        pickle.dump(faces, open(os.path.join('', *archived_faces_path), 'wb'))
+        # from the pickled list, the scan_faces command can make a blank FacialProfile for encodings where name is None
+        # the image portion gets saved to .jpg with the FacialProfile _id as an identifier
 
 
 class FacialProfile(object):
@@ -96,44 +141,49 @@ class FacialProfile(object):
         pairings = []
         for fname in os.listdir(os.path.join(DATA_DIR, 'facial_profiles')):
             # do not iterate over the embedding files
-            if fname.endswith('.p'):
-                continue
-            # add the id
-            pairings.append(fname.split('_')[0])
-            with open(os.path.join(DATA_DIR, 'facial_profiles', fname), 'r') as f:
-                lines = f.readlines()
-                for i, l in enumerate(lines):
-                    if l.startswith('name'):
-                        name = lines[i+1][1:-1]
-                        pairings[-1] = [pairings[-1], name]
-                        break
-            embedding_path = [DATA_DIR, 'facial_profiles', '{}_embedding.p'.format(fname.split('_')[0])]
-            embedding = pickle.load(open(os.path.join('', *embedding_path), 'rb'))
-            pairings[-1] = pairings[-1].append(embedding)
+            if fname.endswith('.txt'):
+                # add the id
+                pairings.append([fname.split('_')[0]])
+                with open(os.path.join(DATA_DIR, 'facial_profiles', fname), 'r') as f:
+                    lines = f.readlines()
+                    for i, l in enumerate(lines):
+                        if l.startswith('name'):
+                            name = lines[i + 1][1:-1]
+                            pairings[-1].append(name)
+                            break
+                encoding_path = [DATA_DIR, 'facial_profiles', '{}_encoding.p'.format(fname.split('_')[0])]
+                encoding = pickle.load(open(os.path.join('', *encoding_path), 'rb'))
+                pairings[-1].append(encoding)
         d = {p[0]: (p[1], p[2]) for p in pairings}
         return d
 
     def write_profile(self, data):
         profile_list = os.listdir(os.path.join(DATA_DIR, 'facial_profiles'))
+        profile_list = [p for p in profile_list if not p.endswith('.p')]
         if len(profile_list) == 0:
             file_index = 0
         else:
             indices = [fname.split('_')[0] for fname in profile_list]
             file_index = max([int(i) for i in indices])+1
-        with open('{}_profile.txt'.format(file_index), 'w') as f:
+        profile_path = [DATA_DIR, 'facial_profiles', '{}_profile.txt'.format(file_index)]
+        with open(os.path.join('', *profile_path), 'w') as f:
             for key in data:
-                if key != 'embedding':
-                    f.write('{}:'.format(key))
-                    f.write('\t'+str(data[key])+'\n')
+                if key == 'encoding':
+                    encoding_path = [DATA_DIR, 'facial_profiles', '{}_encoding.p'.format(file_index)]
+                    pickle.dump(data[key], open(os.path.join('', *encoding_path), 'wb'))
+                elif key == 'image':
+                    image_path = [DATA_DIR, 'facial_profiles', '{}_image.jpg'.format(file_index)]
+                    cv2.imwrite(os.path.join('', *image_path), data[key])
                 else:
-                    pickle.dump(data[key], open('{}_embedding.p'.format(file_index), 'wb'))
+                    f.write('{}:\n'.format(key))
+                    f.write('\t' + str(data[key]) + '\n')
 
     def read_profile(self, _id):
         profile = open(os.path.join(DATA_DIR, 'facial_profiles', '{}_profile.txt'.format(_id)), 'r').readlines()
-        embedding = pickle.load(open(os.path.join(DATA_DIR, 'facial_profiles', '{}_embedding.p'.format(_id)), 'rb'))
+        encoding = pickle.load(open(os.path.join(DATA_DIR, 'facial_profiles', '{}_encoding.p'.format(_id)), 'rb'))
         pairings = []
         for line in profile:
-            if line.endswith(':'):
+            if line.endswith(':\n'):
                 pairings.append(line[:-1])
             elif line.startswith('\t'):
                 # remove the initial tab and ending newline
@@ -141,4 +191,4 @@ class FacialProfile(object):
             else:
                 continue
         profile = {p[0]: p[1] for p in pairings}
-        return profile, embedding
+        return profile, encoding
