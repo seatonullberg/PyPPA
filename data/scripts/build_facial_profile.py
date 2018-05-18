@@ -12,7 +12,7 @@ import pickle
 def write_profile(data, data_dir):
     DATA_DIR = data_dir
     profile_list = os.listdir(os.path.join(DATA_DIR, 'facial_profiles'))
-    profile_list = [p for p in profile_list if not p.endswith('.p')]
+    profile_list = [p for p in profile_list if p.endswith('.txt')]
     if len(profile_list) == 0:
         file_index = 0
     else:

@@ -1,6 +1,4 @@
-import cv2
-import face_recognition
-from Watcher import FacialProfile
+from data.facial_profiles.facial_profile import FacialProfile
 from Speaker import vocalize
 import pickle
 import os
@@ -11,7 +9,8 @@ class PyPPA_WatcherPlugin(object):
 
     def __init__(self, command):
         self.command = command
-        self.COMMAND_HOOK_DICT = {'scan_faces': ['scan for faces', 'scan for face', 'scan faces', 'scan face']}
+        self.COMMAND_HOOK_DICT = {'scan_faces': ['scan for faces', 'scan for face', 'stand for faces', 'stand for face',
+                                                 'scan faces', 'scan face']}
         # This is atypical use of the FUNCTION_KEY_DICT
         # Here use it for direct (unspoken) commands from Watcher
         # spoken commands handled fully by COMMAND_HOOK_DICT
@@ -38,13 +37,12 @@ class PyPPA_WatcherPlugin(object):
         faces = pickle.load(open(os.path.join('', *faces_path), 'rb'))
         for f in faces:
             # if the detected face has no name (not previously recognized)
-            if f['name'] is None:
+            if f['name'] is "Unknown":
                 # write profile for new face
                 self.obj_facial_profile.write_profile({'encoding': f['encoding'],
                                                        'name': 'Unspecified',
                                                        'image': f['image']})
         self.isBlocking = False
-
 
     def greet(self, args_dict):
         vocalize(args_dict['greeting'])
