@@ -5,12 +5,13 @@ import os
 from private_config import DATA_DIR
 import pickle
 from threading import Thread
-from data.facial_profiles.facial_profile import FacialProfile
+from facial_profile import FacialProfile
 # interface with the plugin to execute actionable commands
 # send a string command directly to be executed upon realization of visual cue
 from Plugins.WatcherPlugin.watcher_plugin import PyPPA_WatcherPlugin
 
 
+# TODO: Improve greeting and possibly add object detection?
 class BackgroundWatcher(object):
 
     def __init__(self):
@@ -128,7 +129,6 @@ class BackgroundWatcher(object):
             else:
                 delta = datetime.datetime.now() - self.greeting_times[name]
                 m = divmod(delta.total_seconds(), 60)
-                print(m)
                 # greet again if an hour has passed
                 if m[0] > 60:
                     self.greeting_times[name] = datetime.datetime.now()

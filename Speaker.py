@@ -1,3 +1,4 @@
+# TODO: Implement Tacotron voice synthesis!
 import pyttsx3
 from gtts import gTTS
 from pydub import AudioSegment

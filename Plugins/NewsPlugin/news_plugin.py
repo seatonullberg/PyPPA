@@ -6,12 +6,8 @@ from floating_listener import listen_and_convert
 from private_config import NEWS_API_KEY
 from Plugins.NewsPlugin.open_article_beta import OpenArticleBeta
 
-'''
-TODO:
-add topical search with 'about' function key
-'''
 
-
+# TODO: add 'about' feature to get topical news
 class PyPPA_NewsPlugin(object):
 
     def __init__(self, command):

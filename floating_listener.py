@@ -1,3 +1,6 @@
+# TODO: Dynamic threshold setting
+# TODO: split large incoming text up into smaller bits and multithread for improved response time
+
 import speech_recognition as sr
 import pyaudio
 import struct
@@ -23,7 +26,7 @@ asound = cdll.LoadLibrary('libasound.so')
 asound.snd_lib_error_set_handler(c_error_handler)
 
 
-def listen_and_convert(threshold=0.1, pre_buffer=None, post_buffer=1, max_dialogue=10):
+def listen_and_convert(threshold=0.2, pre_buffer=None, post_buffer=1, max_dialogue=10):
     # threshold is a metric of minimum volume to consider as noise
     # pre_buffer: num seconds of no noise before timeout
     #   - can be None for infinite wait time

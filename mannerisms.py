@@ -1,6 +1,7 @@
 import random
 
 
+# TODO: add more contexts
 class Mannerisms(object):
 
     def __init__(self, context, response_fill_dict):

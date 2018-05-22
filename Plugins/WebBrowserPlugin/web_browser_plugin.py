@@ -9,14 +9,9 @@ from floating_listener import listen_and_convert
 from mannerisms import Mannerisms
 from Plugins.WebBrowserPlugin.google_search_beta import GoogleSearchBeta
 from private_config import NETFLIX_EMAIL, NETFLIX_PASSWORD, NETFLIX_USER, FIREFOX_PROFILE_PATH
-'''
-TODO:
-- add 'and' modifier
-- ask for further commands to determine sleep/active status
-- add youtube_search amd stack_exchange_search
-'''
 
 
+# TODO: Make the netflix function a beta and have it hold attention for full site navigation by voice
 class PyPPA_WebBrowserPlugin(object):
 
     def __init__(self, command):

@@ -1,8 +1,18 @@
 PyPPAPresentation File (.pypr) Notes:
 
+The general idea is to use Flask in conjunction with a webdriver to make localhost act as an automated
+powerpoint style presentation
+
+Ideally, the file can be 'compiled' as an .exe and run anywhere
+
+
 TAGS:
 {META}
 * used to provide information on where presentation resources are stored and how to present
+-flags:
+    -save_location: provide the directory of the compiled presentation
+        * defaults to current dir
+
 
 
 <frame>

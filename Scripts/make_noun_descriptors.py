@@ -1,3 +1,7 @@
+'''
+This script is in limbo until I decide how to proceed with the chat model
+- contains a few useful snippets I might need later but not integral
+'''
 from private_config import DATA_DIR
 import spacy
 import sqlite3

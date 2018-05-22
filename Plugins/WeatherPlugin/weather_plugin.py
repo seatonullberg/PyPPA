@@ -6,13 +6,9 @@ from floating_listener import listen_and_convert
 from private_config import DARK_SKY_KEY, GEONAMES_USERNAME
 from mannerisms import Mannerisms
 
-'''
-TODO: 
--add local and foreign forecasting
--fix decimal pronunciation
-'''
 
-
+# TODO: Could use a total overhaul
+# number pronunciation, information relevance, speed
 class PyPPA_WeatherPlugin(object):
 
     def __init__(self, command):

@@ -1,3 +1,7 @@
+'''
+No longer works as underlying model undergoes some experimentation
+'''
+
 from utils.nlp_utils import convert_sentence_to_matrix
 import scipy.spatial as sp
 from private_config import DATA_DIR

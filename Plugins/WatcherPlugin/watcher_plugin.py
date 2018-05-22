@@ -1,10 +1,11 @@
-from data.facial_profiles.facial_profile import FacialProfile
+from facial_profile import FacialProfile
 from Speaker import vocalize
 import pickle
 import os
 from private_config import DATA_DIR
 
 
+# TODO: add subroutines to FacialProfiles for more activity
 class PyPPA_WatcherPlugin(object):
 
     def __init__(self, command):

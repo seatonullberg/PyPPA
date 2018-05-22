@@ -1,0 +1,20 @@
+{META}
+{/META}
+
+<frame duration=10>
+<voice kind=raw>
+This is a test of the Presentation Plugin.
+</voice>
+</frame>
+
+<frame duration=10>
+<voice kind=raw>
+This is the second slide of the presentation.
+</voice>
+</frame>
+
+<frame duration=10>
+<voice kind=raw>
+This is the last slide, goodbye.
+</voice>
+</frame>
