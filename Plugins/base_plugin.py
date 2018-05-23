@@ -12,14 +12,9 @@ class BasePlugin(object):
                              'premodifier': '',
                              'modifier': '',
                              'postmodifier': ''}
-        # redefine self.command_dict
+        # redefine self.command_dict and test command validity
+        self.acceptsCommand = None
         self.command_parser(command)
-        # check validity of command
-        if self.command_dict['command_hook'] != '':
-            self.acceptsCommand = True
-        else:
-            self.acceptsCommand = False
-        # default to blocking
         self.isBlocking = True
 
     def command_parser(self, command):
@@ -40,10 +35,17 @@ class BasePlugin(object):
                 else:
                     self.command_dict['command_hook'] = hook
                     ch_range = (ch_index, ch_index+len(spelling))
+                    print(spelling)
                     break
             # break the outer loop if the command hook is defined
             if self.command_dict['command_hook'] != '':
                 break
+
+        if self.command_dict['command_hook'] == '':
+            self.acceptsCommand = False
+            return
+        else:
+            self.acceptsCommand = True
 
         # get the premodifier, modifier, and postmodifier
         for mod in self.MODIFIERS[self.command_dict['command_hook']]:
@@ -53,8 +55,6 @@ class BasePlugin(object):
                 mod_index = command.find(spelling)
                 if mod_index == -1:
                     # the spelling is not in the command
-                    # if theres no modifier treat everything after the command hook as premodifier
-                    self.command_dict['premodifier'] = command[ch_range[1]:]
                     continue
                 else:
                     self.command_dict['modifier'] = mod
@@ -64,6 +64,10 @@ class BasePlugin(object):
             if self.command_dict['modifier'] != '':
                 # break the outer loop if modifier is identified
                 break
+
+        # if there is no modifier detected, use everything after the command hook as premodifier
+        if self.command_dict['modifier'] == '':
+            self.command_dict['premodifier'] = command[ch_range[1]:]
 
     def frame_data(self):
         '''

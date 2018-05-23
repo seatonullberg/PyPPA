@@ -20,7 +20,11 @@ class PyPPA_WebBrowserPlugin(BasePlugin):
                                   'search_google': ['search google for', 'search for', 'google'],
                                   'search_netflix': ['search netflix for', 'search netflix', 'netflix'],
                                   'search_youtube': ['search youtube for', 'search youtube', 'youtube']}
-        self.MODIFIERS = {'open': {'canvas': ['canvas', 'e learning']}}
+        self.MODIFIERS = {'open': {'canvas': ['canvas', 'e learning']},
+                          'search_google': {},
+                          'search_netflix': {},
+                          'search_youtube': {}
+                          }
         super().__init__(command=command,
                          command_hook_dict=self.COMMAND_HOOK_DICT,
                          modifiers=self.MODIFIERS)
@@ -68,7 +72,7 @@ class PyPPA_WebBrowserPlugin(BasePlugin):
         driver = webdriver.Firefox()
         driver.get('https://www.google.com/search?q='+search_query)
         vocalize(Mannerisms('request_subsequent_command', None).final_response)
-        sub_command = self.listener().listen_and_convert()c
+        sub_command = self.listener().listen_and_convert()
         beta = GoogleSearchBeta(sub_command, driver)
         beta.function_handler()
         self.isBlocking = False

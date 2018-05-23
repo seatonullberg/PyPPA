@@ -109,13 +109,11 @@ class BackgroundWatcher(object):
             except KeyError:
                 # if the face has not been greeted yet, add an entry with current time and greet
                 self.greeting_times[name] = datetime.datetime.now()
-                self.plugin.function_handler(command_hook='greet',
-                                             args_dict={'greeting': 'Hello {}!'.format(name)})
+                self.plugin.function_handler(args=['greet', {'greeting': 'Hello {}'.format(name)}])
             else:
                 delta = datetime.datetime.now() - self.greeting_times[name]
                 m = divmod(delta.total_seconds(), 60)
                 # greet again if an hour has passed
                 if m[0] > 60:
                     self.greeting_times[name] = datetime.datetime.now()
-                    self.plugin.function_handler(command_hook='greet',
-                                                 args_dict={'greeting': 'Hello {}!'.format(name)})
+                    self.plugin.function_handler(args=['greet', {'greeting': 'Hello {}!'.format(name)}])
