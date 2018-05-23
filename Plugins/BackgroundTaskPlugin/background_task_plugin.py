@@ -18,7 +18,6 @@ class PyPPA_BackgroundTaskPlugin(BasePlugin):
                                   'all': ['all tasks', 'all']
                                   }
                           }
-
         # run and stop have the same modifiers
         self.MODIFIERS['stop'] = self.MODIFIERS['run']
         super().__init__(command=command,
@@ -32,6 +31,7 @@ class PyPPA_BackgroundTaskPlugin(BasePlugin):
             self.command_dict['modifier'] = 'all'
 
         if self.command_dict['command_hook'] == 'run':
+            # start a new process
             from BackgroundTasks.Reddit.reddit_tasks import startup as reddit_startup
             from BackgroundTasks.Wikipedia.wikipedia_tasks import startup as wikipedia_startup
             if len(current_processes) >= multiprocessing.cpu_count()-1:

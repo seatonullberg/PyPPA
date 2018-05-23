@@ -35,7 +35,6 @@ class BasePlugin(object):
                 else:
                     self.command_dict['command_hook'] = hook
                     ch_range = (ch_index, ch_index+len(spelling))
-                    print(spelling)
                     break
             # break the outer loop if the command hook is defined
             if self.command_dict['command_hook'] != '':
@@ -50,7 +49,7 @@ class BasePlugin(object):
         # get the premodifier, modifier, and postmodifier
         for mod in self.MODIFIERS[self.command_dict['command_hook']]:
             # these are the modifiers associated with the previously parsed command hook
-            for spelling in self.MODIFIERS[self.command_dict['command_hook'][mod]]:
+            for spelling in self.MODIFIERS[self.command_dict['command_hook']][mod]:
                 # these are the spellings of the modifier
                 mod_index = command.find(spelling)
                 if mod_index == -1:
@@ -58,8 +57,9 @@ class BasePlugin(object):
                     continue
                 else:
                     self.command_dict['modifier'] = mod
-                    self.command_dict['premodifier'] = command[ch_range[1]:mod_index]
-                    self.command_dict['postmodifier'] = command[mod_index+len(spelling):]
+                    self.command_dict['premodifier'] = command[ch_range[1]+1:mod_index]
+                    self.command_dict['postmodifier'] = command[mod_index+len(spelling)+1:]
+                    # the +1 is to cover the inevitable space after word
                     break
             if self.command_dict['modifier'] != '':
                 # break the outer loop if modifier is identified

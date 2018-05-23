@@ -123,6 +123,14 @@ class FloatingListener(object):
                     # otherwise continue waiting
                     post_frames.append(data)
 
+        # Reset the constants so the object can be used again
+        if self.pre_buffer is np.inf:
+            self.pre_buffer = None
+        else:
+            self.pre_buffer /= self.RATE / self.CHUNK
+        self.post_buffer /= self.RATE / self.CHUNK
+        self.max_dialogue /= self.RATE / self.CHUNK
+
         command = self.recognize(self.WAVE_OUTPUT_FILENAME)
         return command
 

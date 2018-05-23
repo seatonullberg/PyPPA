@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from Plugins.base_plugin import BasePlugin
 
 
+# TODO: chunk the instructions for more efficient vocalization
 class PyPPA_TeacherPlugin(BasePlugin):
 
     def __init__(self, command):
