@@ -9,40 +9,40 @@ from mannerisms import Mannerisms
 from Speaker import vocalize
 import os
 import numpy as np
-from floating_listener import listen_and_convert
+from Plugins.base_plugin import BasePlugin
 import pickle
 import sqlite3
 
 
-class PyPPA_ChatPlugin(object):
+class PyPPA_ChatPlugin(BasePlugin):
 
     def __init__(self, command):
-        self.command = command
-        self.COMMAND_HOOK_DICT = {'chat': ['chat with me', 'talk to me', 'let us chat', 'let us chat',
+        self.COMMAND_HOOK_DICT = {'chat': ['chat with me', 'talk to me',
+                                           'let us chat', 'let us talk',
                                            "let's chat", "let's talk"]}
+        self.MODIFIERS = {'chat': {}}
         self.FUNCTION_KEY_DICT = {'stop': ['exit chat', 'stop talking']}
-        self.isBlocking = True
+        super().__init__(command=command,
+                         command_hook_dict=self.COMMAND_HOOK_DICT,
+                         modifiers=self.MODIFIERS)
 
-    def update_database(self):
-        pass
-
-    def function_handler(self, command_hook, spelling):
+    def function_handler(self, args=None):
         # the command hook initiates a chat session in a blocking loop to prevent other commands from being interpreted
         # during normal speech
-        # if one of the function keys is used, exit the session and go back to listening/non-blocking
         self.start_chat_session()
 
     def start_chat_session(self):
+        stop_tokens = ['exit chat', 'stop talking']
         while True:
             # get the user's input
-            chat_text = listen_and_convert()
+            chat_text = self.listener().listen_and_convert()
             print('User: {}'.format(chat_text))
-            for func_hooks in self.FUNCTION_KEY_DICT:
-                for spellings in self.FUNCTION_KEY_DICT[func_hooks]:
-                    if spellings in chat_text:
-                        print('Ending session')
-                        self.end_chat_session()
-                        return
+            # see if user wants to stop chat
+            for st in stop_tokens:
+                if chat_text == st:
+                    print('Ending session.')
+                    self.end_chat_session()
+                    return
             # convert to matrix
             input_matrix = convert_sentence_to_matrix(s=chat_text)
             sent_len = len(chat_text.split())

@@ -2,43 +2,37 @@ import requests
 from bs4 import BeautifulSoup
 import json
 from Speaker import vocalize
-from floating_listener import listen_and_convert
 from private_config import DARK_SKY_KEY, GEONAMES_USERNAME
-from mannerisms import Mannerisms
+from Plugins.base_plugin import BasePlugin
 
 
 # TODO: Could use a total overhaul
 # number pronunciation, information relevance, speed
-class PyPPA_WeatherPlugin(object):
+class PyPPA_WeatherPlugin(BasePlugin):
 
     def __init__(self, command):
-
-        self.command = command
-        self.COMMAND_HOOK_DICT = {'check weather': ['check the weather',
+        self.COMMAND_HOOK_DICT = {'check_weather': ['check the weather',
                                                     'what is the weather',
                                                     "what's the weather",
                                                     'check weather']}
-        self.FUNCTION_KEY_DICT = {'in': ['in']}
-        self.location = None
+        self.MODIFIERS = {'check_weather': {'in': ['in', 'on']}}
         self.weather_dict = {}
         self.isBlocking = True
+        super().__init__(command=command,
+                         command_hook_dict=self.COMMAND_HOOK_DICT,
+                         modifiers=self.MODIFIERS)
 
-    def function_handler(self, command_hook, spelling):
-        for variations in self.FUNCTION_KEY_DICT['in']:
-            if variations in self.command:
-                # fetch foreign weather
-                self.location = self.command.split(variations)[1].strip()
-                self.get_foreign_weather()
-                self.vocalize__weather()
-                return
-
-        # otherwise fetch local weather
-        self.get_local_weather()
-        self.vocalize__weather()
-        return
-
-    def update_database(self):
-        pass
+    def function_handler(self, args=None):
+        if self.command_dict['modifier'] == 'in':
+            # fetch foreign weather
+            self.get_foreign_weather()
+            self.vocalize__weather()
+            return
+        else:
+            # otherwise fetch local weather
+            self.get_local_weather()
+            self.vocalize__weather()
+            return
 
     def get_local_weather(self):
         '''
@@ -63,7 +57,8 @@ class PyPPA_WeatherPlugin(object):
         self.weather_dict = response
 
     def get_foreign_weather(self):
-        response = requests.get('http://api.geonames.org/searchJSON?q='+self.location+'&maxRows=10&username='+GEONAMES_USERNAME)
+        location = self.command_dict['postmodifier']
+        response = requests.get('http://api.geonames.org/searchJSON?q='+location+'&maxRows=10&username='+GEONAMES_USERNAME)
         response = json.loads(response.text)
         response = response['geonames'][0]
         latitude = response['lat']
@@ -76,15 +71,16 @@ class PyPPA_WeatherPlugin(object):
         self.weather_dict = response
 
     def vocalize__weather(self):
+        location = self.command_dict['postmodifier']
         # can be improved with mannerisms
-        if self.location is None:
+        if location == '':
             vocalize('Currently, the temperature is '+str(self.weather_dict['temperature'])+' degrees, humidity is at '+
                      str(round(float(self.weather_dict['humidity'])*100, 1))+' percent, the chance of precipitation is '+
                      str(round(float(self.weather_dict['precipProbability'])*100, 1))+' percent, wind speeds are at '+
                      str(self.weather_dict['windSpeed'])+' miles per hour, and cloud coverage is around '+
                      str(round(float(self.weather_dict['cloudCover'])*100, 1))+' percent.')
         else:
-            vocalize('Currently, in'+self.location+', the temperature is'+str(self.weather_dict['temperature'])+
+            vocalize('Currently, in'+location+', the temperature is'+str(self.weather_dict['temperature'])+
                      ' degrees, humidity is at '+
                      str(round(float(self.weather_dict['humidity'])*100, 1))+' percent, the chance of precipitation is '+
                      str(round(float(self.weather_dict['precipProbability'])*100, 1))+' percent, wind speeds are at '+

@@ -1,6 +1,7 @@
 from Speaker import vocalize
 
 
+# TODO: modify to fit inheritance scheme
 class GoogleSearchBeta(object):
 
     def __init__(self, command, driver):

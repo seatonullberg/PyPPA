@@ -1,65 +1,65 @@
 import multiprocessing
 from multiprocessing import Process
 from Speaker import vocalize
+from Plugins.base_plugin import BasePlugin
 
 
-class PyPPA_BackgroundTaskPlugin(object):
+class PyPPA_BackgroundTaskPlugin(BasePlugin):
 
     def __init__(self, command):
-        self.command = command
         self.COMMAND_HOOK_DICT = {'run': ['start running my', 'start running',
                                           'run my', 'start my', 'start', 'run'],
                                   'stop': ['stop running my', 'stop running',
                                            'stop my', 'quit my', 'kill my',
                                            'stop', 'quit', 'kill']
                                   }
-        self.FUNCTION_KEY_DICT = {'reddit_tasks': ['reddit tasks', 'reddit task',
-                                                  'reddit'],
-                                  'wikipedia_tasks': ['wikipedia tasks', 'wikipedia task',
-                                                     'wikipedia'],
+        self.MODIFIERS = {'run': {'reddit_tasks': ['reddit tasks', 'reddit task', 'reddit'],
+                                  'wikipedia_tasks': ['wikipedia tasks', 'wikipedia task', 'wikipedia'],
                                   'all': ['all tasks', 'all']
                                   }
-        self.isBlocking = True
+                          }
 
-    def function_handler(self, command_hook, spelling):
+        # run and stop have the same modifiers
+        self.MODIFIERS['stop'] = self.MODIFIERS['run']
+        super().__init__(command=command,
+                         command_hook_dict=self.COMMAND_HOOK_DICT,
+                         modifiers=self.MODIFIERS)
+
+    def function_handler(self, args=None):
         current_processes = multiprocessing.active_children()
-        function_to_run = 'all'
-        for func in self.FUNCTION_KEY_DICT:
-            for variation in self.FUNCTION_KEY_DICT[func]:
-                if variation in self.command:
-                    function_to_run = func
-        if command_hook == 'run':
+        # default modifier is 'all'
+        if self.command_dict['modifier'] == '':
+            self.command_dict['modifier'] = 'all'
+
+        if self.command_dict['command_hook'] == 'run':
             from BackgroundTasks.Reddit.reddit_tasks import startup as reddit_startup
             from BackgroundTasks.Wikipedia.wikipedia_tasks import startup as wikipedia_startup
             if len(current_processes) >= multiprocessing.cpu_count()-1:
                 vocalize('There are currently too many processes running to do that.')
-            elif function_to_run == 'reddit_tasks':
+            elif self.command_dict['modifier'] == 'reddit_tasks':
                 Process(target=reddit_startup, name='reddit_tasks').start()
-            elif function_to_run == 'wikipedia_tasks':
+            elif self.command_dict['modifier'] == 'wikipedia_tasks':
                 Process(target=wikipedia_startup, name='wikipedia_tasks').start()
             else:
                 # run all
-                if len(current_processes) >= multiprocessing.cpu_count()-len(self.FUNCTION_KEY_DICT):
+                # if there are more processes to run than available cores, don't run any
+                if len(current_processes) >= (multiprocessing.cpu_count() -
+                                              len(self.MODIFIERS[self.command_dict['command_hook']])):
                     vocalize('There are currently too many processes running to do that.')
                 else:
                     Process(target=reddit_startup, name='reddit_tasks').start()
                     Process(target=wikipedia_startup, name='wikipedia_tasks').start()
         else:
             # terminate specified process
-            if function_to_run != 'all':
+            if self.command_dict['modifier'] != 'all':
                 for proc in current_processes:
-                    if proc.name == function_to_run:
+                    if proc.name == self.command_dict['modifier']:
                         proc.terminate()
                         proc.join()
             else:
                 # terminate any and all background processes
                 for proc in current_processes:
-                    if proc.name in self.FUNCTION_KEY_DICT:
+                    if proc.name in self.MODIFIERS[self.command_dict['command_hook']]:
                         proc.terminate()
                         proc.join()
         self.isBlocking = False
-
-    def update_database(self):
-        pass
-
-

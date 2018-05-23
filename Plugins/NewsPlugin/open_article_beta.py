@@ -1,5 +1,7 @@
 from Speaker import vocalize
 import webbrowser
+# TODO: rewrite with new inheritance scheme
+
 
 '''
 -add ability to select an article by keyword in headline

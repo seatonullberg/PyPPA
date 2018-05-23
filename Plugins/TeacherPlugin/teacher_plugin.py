@@ -1,28 +1,26 @@
 import wikipedia
 import requests
 from Speaker import vocalize
-from floating_listener import listen_and_convert
 from bs4 import BeautifulSoup
+from Plugins.base_plugin import BasePlugin
 
 
-class PyPPA_TeacherPlugin(object):
+class PyPPA_TeacherPlugin(BasePlugin):
 
     def __init__(self, command):
+        self.COMMAND_HOOK_DICT = {'teach_me': ['teach me about', 'teach me']}
+        self.MODIFIERS = {'teach_me': {'how_to': ['how too', 'hot to', 'hot too', 'how to']}}
+        super().__init__(command=command,
+                         command_hook_dict=self.COMMAND_HOOK_DICT,
+                         modifiers=self.MODIFIERS)
 
-        self.command = command
-        self.COMMAND_HOOK_DICT = {'teach me': ['teach me about', 'teach me']}
+    def function_handler(self, args=None):
+        # this is not robust for future intraplugin changes
+        if self.command_dict['modifier'] != '':
+            self.scrape_wikihow(self.command_dict['postmodifier'])
+            return
 
-        self.FUNCTION_KEY_DICT = {'how to': ['how too', 'hot to', 'hot too', 'how to']}
-        self.isBlocking = True
-
-    def function_handler(self, command_hook, spelling):
-        # seems unnecessary but leaves room for growth
-        for variations in self.FUNCTION_KEY_DICT['how to']:
-            if variations in self.command:
-                self.scrape_wikihow(spelling, variations)
-                return
-
-        self.basic_teach(spelling)
+        self.basic_teach(self.command_dict['premodifier'])
 
     def update_database(self):
         pass
@@ -33,9 +31,8 @@ class PyPPA_TeacherPlugin(object):
     --------------------------------------------------------------------------------------------------------
     '''
 
-    def basic_teach(self, hook_spelling):
+    def basic_teach(self, query):
         try:
-            query = self.command.replace(hook_spelling, '')
             summary = wikipedia.summary(query, auto_suggest=True)
             vocalize('ok, this is what i know about '+query)
             vocalize(summary)
@@ -44,9 +41,7 @@ class PyPPA_TeacherPlugin(object):
 
         self.isBlocking = False
 
-    def scrape_wikihow(self, hook_spelling, function_spelling):
-        query = self.command.replace(hook_spelling, '')
-        query = query.replace(function_spelling, '')
+    def scrape_wikihow(self, query):
         r = requests.get(r'https://www.wikihow.com/'+query)
 
         readable = r.text

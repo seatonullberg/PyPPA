@@ -29,34 +29,50 @@ def collect(args):
         else:
             soup = BeautifulSoup(r.content, 'html5lib')
             text = soup.text
-            paragraphs = text.split('\n\n')
+            paragraphs = []
+            lines = []
+            for line in text.split('\n'):
+                if len(line) <= 1:
+                    paragraphs.append(lines)
+                    lines = []
+                else:
+                    lines.append(line)
             # cut out the intro and license
-            paragraphs = paragraphs[25:-100]
-            for line in paragraphs:
+            paragraphs = paragraphs[50:-100]
+            # replace the new line splits with a space so each entry is one big line
+            paragraphs = [' '.join(p) for p in paragraphs]
+            for paragraph in paragraphs:
+                # make sure all new lines are gone
+                paragraph = paragraph.replace('\n', '')
                 # remove content between parentheses
-                line = re.sub(r'\([^()]*\)', '', line)
+                paragraph = re.sub(r'\([^()]*\)', '', paragraph)
                 # remove non ascii
-                line = re.sub(r'[^\x00-\x7f]', '', line)
-                # convert new lines to spaces
-                line = ' '.join(line.split('\n'))
-                # remove punctuation aside from endings
-                line = ''.join([char for char in line if char.isalpha() or char in ['!', '?', '.', ' ']])
-                # split on end punctuation
-                line = re.split('(?<=[.!?]) +', line)
-                # now remove the end punctuation
-                line = [l.replace('!', '').replace('?', '').replace('.', '') for l in line]
-                # keep sentences that start with uppercase letter
-                try:
-                    line = [l for l in line if l[0].isupper()]
-                except IndexError:
-                    line = ''
-                # keep sentences of 2 words or greater
-                line = [l for l in line if len(l.split()) > 1]
-                # make all lowercase
-                line = [l.lower() for l in line]
+                paragraph = re.sub(r'[^\x00-\x7f]', '', paragraph)
+                # split on punctuation
+                line_list = re.split('(?<=[.!?]) +', paragraph)
+                clean_line_list = []
+                for line in line_list:
+                    # keep lines that start with uppercase letter
+                    try:
+                        if not line[0].isupper():
+                            line = ''
+                    except IndexError:
+                        line = ''
+                    # now make all lowercase
+                    line = line.lower()
+                    # throwout any chapter headings
+                    if line.startswith('chapter'):
+                        line = ''
+                    # ensure single space
+                    line = ' '.join([l for l in line.split() if l != ' '])
+                    # remove any other  distraction chars
+                    line = ''.join([l for l in line if l.isalpha() or l == ' '])
+                    if line != '':
+                        clean_line_list.append(line)
+                # write to file followed by newline to indicate paragraph separation
                 with open(os.path.join(args.data_dir, 'book_paragraphs.txt'), 'a') as f:
-                    for sentence in line:
-                        f.write(sentence + '\n')
+                    for clean_line in clean_line_list:
+                        f.write(clean_line+'\n')
                     f.write('\n')
             count += 1
             pbar.update(1)

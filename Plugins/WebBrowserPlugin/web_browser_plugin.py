@@ -5,58 +5,46 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from Speaker import vocalize
-from floating_listener import listen_and_convert
+from Plugins.base_plugin import BasePlugin
 from mannerisms import Mannerisms
 from Plugins.WebBrowserPlugin.google_search_beta import GoogleSearchBeta
 from private_config import NETFLIX_EMAIL, NETFLIX_PASSWORD, NETFLIX_USER, FIREFOX_PROFILE_PATH
 
 
 # TODO: Make the netflix function a beta and have it hold attention for full site navigation by voice
-class PyPPA_WebBrowserPlugin(object):
+class PyPPA_WebBrowserPlugin(BasePlugin):
 
     def __init__(self, command):
-        self.command = command
         # remember to place the single word spelling last to avoid 'best spelling' issue
         self.COMMAND_HOOK_DICT = {'open': ['open up', 'open it', 'open'],
                                   'search_google': ['search google for', 'search for', 'google'],
                                   'search_netflix': ['search netflix for', 'search netflix', 'netflix'],
                                   'search_youtube': ['search youtube for', 'search youtube', 'youtube']}
-        # use these functions to clarify what might be spelled incorrectly
-        self.FUNCTION_KEY_DICT = {'canvas': ['canvas', 'e learning']}
-        self.isBlocking = True
+        self.MODIFIERS = {'open': {'canvas': ['canvas', 'e learning']}}
+        super().__init__(command=command,
+                         command_hook_dict=self.COMMAND_HOOK_DICT,
+                         modifiers=self.MODIFIERS)
 
-    def function_handler(self, command_hook, spelling):
+    def function_handler(self, args=None):
         '''
         Function required to map user commands with their final function
         :return: None
         '''
-        if command_hook == 'search_google':
+        if self.command_dict['command_hook'] == 'search_google':
             # prepare for a google search
-            search_query = self.command.replace(spelling, '')
-            split_query = list(search_query.split(' '))
-            search_query = '+'.join(split_query)
-            self.google_search(search_query)
-        elif command_hook == 'search_netflix':
+            self.google_search(self.command_dict['premodifier'])
+        elif self.command_dict['command_hook'] == 'search_netflix':
             # prepare for a netflix search
-            search_query = self.command.replace(spelling, '')
-            self.netflix_search(search_query)
-        elif command_hook == 'search_youtube':
-            search_query = self.command.replace(spelling, '')
-            self.youtube_search(search_query)
+            self.netflix_search(self.command_dict['premodifier'])
+        elif self.command_dict['command_hook'] == 'search_youtube':
+            # prepare youtube search
+            self.youtube_search(self.command_dict['premodifier'])
         else:
             # the open hook is being used
-
-            # check for UFL canvas
-            for variations in self.FUNCTION_KEY_DICT['canvas']:
-                if variations in self.command:
-                    self.open_canvas()
-                    return
-            # attempt to find correct website
-            # improve with more robust command screening
-            self.catch_all(spelling)
-
-    def update_database(self):
-        pass
+            if self.command_dict['modifier'] == 'canvas':
+                self.open_canvas()
+            else:
+                self.catch_all(self.command_dict['premodifier'])
 
     '''
     --------------------------------------------------------------------------------------------------------
@@ -80,7 +68,7 @@ class PyPPA_WebBrowserPlugin(object):
         driver = webdriver.Firefox()
         driver.get('https://www.google.com/search?q='+search_query)
         vocalize(Mannerisms('request_subsequent_command', None).final_response)
-        sub_command = listen_and_convert()
+        sub_command = self.listener().listen_and_convert()c
         beta = GoogleSearchBeta(sub_command, driver)
         beta.function_handler()
         self.isBlocking = False

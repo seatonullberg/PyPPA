@@ -2,19 +2,20 @@ import time
 from Speaker import vocalize
 from config import PLUGIN_LIST
 from mannerisms import Mannerisms
-from floating_listener import listen_and_convert
+from floating_listener import FloatingListener
 
 
 def update_plugins():
     for plugin in PLUGIN_LIST:
         p = plugin('')
-        p.update_database()
+        p.update_plugin()
     print('Updates Complete')
 
 
-class BackgroundListener(object):
+class BackgroundListener(FloatingListener):
 
     def __init__(self):
+        super().__init__()
         self.triggers = ['hey Auto', 'hey auto', 'wake up', 'Auto', 'auto']
         update_plugins()
 
@@ -24,7 +25,7 @@ class BackgroundListener(object):
         :return: None, calls collect_command to collect next incoming audio
         '''
         while True:
-            recorded_input = listen_and_convert(pre_buffer=None)
+            recorded_input = self.listen_and_convert()
             for trigger in self.triggers:
                 try:
                     if trigger in recorded_input:
@@ -35,7 +36,9 @@ class BackgroundListener(object):
                     continue
 
     def collect_and_process(self):
-        recorded_input = listen_and_convert(pre_buffer=10)
+        # set new prebuffer for recording
+        self.pre_buffer = 10
+        recorded_input = self.listen_and_convert()
         try:
             recorded_input = recorded_input.lower()
             print('collect_and_process heard: {}'.format(recorded_input))
@@ -45,6 +48,15 @@ class BackgroundListener(object):
             return
 
         for plugin in PLUGIN_LIST:
+            plugin = plugin(recorded_input)
+            if plugin.acceptsCommand:
+                plugin.function_handler()
+                while plugin.isBlocking:
+                    time.sleep(0.5)
+                return
+            else:
+                continue
+        '''
             # check all installed modules
             plugin = plugin(recorded_input)
             for command_hook in plugin.COMMAND_HOOK_DICT:
@@ -55,5 +67,6 @@ class BackgroundListener(object):
                         while plugin.isBlocking:
                             time.sleep(0.5)
                         return
+        '''
         # if all fail
         vocalize(Mannerisms('unknown_command', {'command': recorded_input}).final_response)

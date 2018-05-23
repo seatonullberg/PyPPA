@@ -91,31 +91,16 @@ class BackgroundWatcher(object):
         self.frame_data['face_names'] = face_names
         # TODO: Figure out how to store the area just around an identified face
         self.frame_data['images'] = [None for n in face_names]
+        # pickle the dict so that external plugins can work with visual data
+        # SUPER IMPORTANT FILE FOR OTHER PLUGINS THAT WANT VISUAL CUES
+        frame_data_path = [DATA_DIR, 'public_pickles', 'frame_data.p']
+        pickle.dump(self.frame_data, open(os.path.join('', *frame_data_path), 'wb'))
 
     def threader(self):
         funcs = dir(BackgroundWatcher)
         funcs = [f for f in funcs if f.startswith('task_')]
         for f in funcs:
             Thread(target=getattr(BackgroundWatcher, f), args=(self,)).start()
-
-    def task_archive_faces(self):
-        '''
-        Pickle a list of images of faces, their embeddings, and names if known for scan_faces to pull from
-        :param frame: Video freeze frame from cv2 VideoCapture
-        :return: None (produce a pickle file)
-        '''
-        faces = []
-        for name, encoding, image in zip(self.frame_data['face_names'],
-                                         self.frame_data['face_encodings'],
-                                         self.frame_data['images']):
-            faces.append({'name': name,
-                          'encoding': encoding,
-                          'image': image})
-
-        archived_faces_path = [DATA_DIR, 'facial_profiles', 'archived_faces.p']
-        pickle.dump(faces, open(os.path.join('', *archived_faces_path), 'wb'))
-        # from the pickled list, the scan_faces command can make a blank FacialProfile for encodings where name is None
-        # the image portion gets saved to .jpg with the FacialProfile _id as an identifier
 
     def task_determine_greeting(self):
         for name in self.frame_data['face_names']:
