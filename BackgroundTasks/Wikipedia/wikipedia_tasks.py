@@ -2,6 +2,7 @@ import wikipedia
 import numpy as np
 import re
 from private_config import DATA_DIR
+import multiprocessing
 import os
 
 
@@ -10,6 +11,11 @@ def startup():
     funcs = [collect_articles]
     for func in funcs:
         func()
+    # kill the process once complete to free space
+    for proc in multiprocessing.active_children():
+        if proc.name == 'wikipedia_tasks':
+            proc.terminate()
+            proc.join()
 
 
 def collect_articles():

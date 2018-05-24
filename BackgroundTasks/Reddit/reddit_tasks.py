@@ -6,6 +6,7 @@ from praw.models import MoreComments
 import re
 import os
 import pickle
+import multiprocessing
 from Crypto.Hash import SHA256
 from private_config import REDDIT_USERNAME, REDDIT_USER_AGENT, REDDIT_SECRET, REDDIT_CLIENT_ID, DATA_DIR
 
@@ -20,6 +21,11 @@ def startup():
     funcs = [archive_text]
     for func in funcs:
         func()
+    # kill the process once complete to free space
+    for proc in multiprocessing.active_children():
+        if proc.name == 'reddit_tasks':
+            proc.terminate()
+            proc.join()
 
 
 def clean_comment(comment):

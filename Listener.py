@@ -18,6 +18,7 @@ class BackgroundListener(FloatingListener):
         super().__init__()
         self.triggers = ['hey Auto', 'hey auto', 'wake up', 'Auto', 'auto']
         update_plugins()
+        self.reset_threshold()
 
     def startup(self):
         '''
@@ -36,14 +37,14 @@ class BackgroundListener(FloatingListener):
                     continue
 
     def collect_and_process(self):
-        print('collect and process starting')
         # set new prebuffer for recording
+        self.pre_buffer = 15
         recorded_input = self.listen_and_convert()
         try:
             recorded_input = recorded_input.lower()
             print('collect_and_process heard: {}'.format(recorded_input))
         except AttributeError:
-            # when recorded is None
+            # when recorded is None go back to sleep
             print('No command was recorded. Going to sleep')
             return
 
@@ -53,9 +54,11 @@ class BackgroundListener(FloatingListener):
                 plugin.function_handler()
                 while plugin.isBlocking:
                     time.sleep(0.5)
-                return
+                # recall self to stay 'awake'
+                self.collect_and_process()
+                break
             else:
                 continue
-
-        # if all fail
-        vocalize(Mannerisms('unknown_command', {'command': recorded_input}).final_response)
+        # if none of the plugins have accepted the command then go back to sleep
+        # the vocalization would be annoying in the looping stage
+        # vocalize(Mannerisms('unknown_command', {'command': recorded_input}).final_response)

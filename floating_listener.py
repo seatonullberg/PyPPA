@@ -46,16 +46,21 @@ class FloatingListener(object):
         wf.writeframes(b''.join(frames))
         wf.close()
 
-    def recognize(self, fname):
+    def recognize(self):
         r = sr.Recognizer()
-        file = sr.AudioFile(fname)
-        with file as source:
-            audio = r.record(source)
+
+        try:
+            with sr.AudioFile(self.WAVE_OUTPUT_FILENAME) as source:
+                audio = r.record(source)
+        except FileNotFoundError:
+            return ''
+
         try:
             command = r.recognize_google(audio_data=audio)
         except sr.UnknownValueError:
             print('unknown value error')
             command = None
+
         os.remove(self.WAVE_OUTPUT_FILENAME)
         return command
 
@@ -131,7 +136,7 @@ class FloatingListener(object):
         self.post_buffer /= self.RATE / self.CHUNK
         self.max_dialogue /= self.RATE / self.CHUNK
 
-        command = self.recognize(self.WAVE_OUTPUT_FILENAME)
+        command = self.recognize()
         return command
 
     def reset_threshold(self, chunks=20):
