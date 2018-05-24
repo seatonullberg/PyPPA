@@ -137,6 +137,12 @@ class FloatingListener(object):
         self.max_dialogue /= self.RATE / self.CHUNK
 
         command = self.recognize()
+        try:
+            command = command.lower()
+        except AttributeError:
+            # most likely a None
+            pass
+
         return command
 
     def reset_threshold(self, chunks=20):

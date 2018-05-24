@@ -72,9 +72,10 @@ class PyPPA_WebBrowserPlugin(BasePlugin):
         driver = webdriver.Firefox()
         driver.get('https://www.google.com/search?q='+search_query)
         vocalize(Mannerisms('request_subsequent_command', None).final_response)
+        self.listener().pre_buffer = 10
         sub_command = self.listener().listen_and_convert()
-        beta = GoogleSearchBeta(sub_command, driver)
-        beta.function_handler()
+        beta = GoogleSearchBeta(sub_command)
+        beta.function_handler(driver)
         self.isBlocking = False
 
     def netflix_search(self, search_query):

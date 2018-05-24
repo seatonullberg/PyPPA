@@ -67,7 +67,7 @@ class BasePlugin(object):
 
         # if there is no modifier detected, use everything after the command hook as premodifier
         if self.command_dict['modifier'] == '':
-            self.command_dict['premodifier'] = command[ch_range[1]:]
+            self.command_dict['premodifier'] = command[ch_range[1]+1:]
 
     def frame_data(self):
         '''
@@ -88,7 +88,7 @@ class BasePlugin(object):
         '''
         listener_path = [DATA_DIR, 'public_pickles', 'listener.p']
         try:
-            listener = pickle.load(open(os.path.join('', *listener_path)), 'rb')
+            listener = pickle.load(open(os.path.join('', *listener_path), 'rb'))
         except FileNotFoundError:
             listener = None
         return listener
@@ -100,3 +100,24 @@ class BasePlugin(object):
     # provide a name to overwrite for inter-plugin design symmetry
     def function_handler(self, args=None):
         pass
+
+    def reset_command_dict(self):
+        # call this between the processing of multiple commands
+        self.command_dict = {'command_hook': '',
+                             'premodifier': '',
+                             'modifier': '',
+                             'postmodifier': ''}
+        self.acceptsCommand = None
+
+    def lock_context(self, args=None, pre_buffer=10):
+        # call this to conveniently lock a context in the function_handler of the plugin
+        self.reset_command_dict()
+        listener = self.listener()
+        listener.pre_buffer = pre_buffer
+        new_command = listener.listen_and_convert()
+        self.command_parser(new_command)
+        if self.acceptsCommand:
+            self.function_handler(args=args)
+        else:
+            print('Exiting Context')
+            return
