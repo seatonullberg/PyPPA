@@ -2,7 +2,6 @@ from Speaker import vocalize
 from Plugins.base_plugin import BasePlugin
 
 
-# TODO: modify to fit inheritance scheme
 class GoogleSearchBeta(BasePlugin):
 
     def __init__(self, command):
@@ -14,8 +13,9 @@ class GoogleSearchBeta(BasePlugin):
                          modifiers=self.MODIFIERS)
 
     def function_handler(self, args=None):
-        # expect webdriver as args
-        self.driver = args
+        assert type(args) == dict
+        self.driver = args['driver']
+
         if self.command_dict['modifier'] == 'number':
             # open the link from specified position
             # use postmodifier to identify position
@@ -24,8 +24,9 @@ class GoogleSearchBeta(BasePlugin):
             # no modifier
             # use the premodifier as keyword search to open link containing keyword/phrase
             self.open_link(keyphrase=self.command_dict['premodifier'])
+
         # keep active loop in google_beta function handler context
-        self.lock_context(args=self.driver, pre_buffer=15)
+        self.lock_context(pre_buffer=15, args=args)
 
     def open_link(self, str_number=None, keyphrase=None):
         link_list = []

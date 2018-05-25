@@ -40,6 +40,7 @@ class BasePlugin(object):
             if self.command_dict['command_hook'] != '':
                 break
 
+        # if command contains a recognized command hook then the command is considered acceptable
         if self.command_dict['command_hook'] == '':
             self.acceptsCommand = False
             return
@@ -111,6 +112,7 @@ class BasePlugin(object):
 
     def lock_context(self, args=None, pre_buffer=10):
         # call this to conveniently lock a context in the function_handler of the plugin
+        # returns after timeout or unrecognized command
         self.reset_command_dict()
         listener = self.listener()
         listener.pre_buffer = pre_buffer

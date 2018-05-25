@@ -6,10 +6,11 @@ from private_config import DATA_DIR
 import pickle
 from threading import Thread
 from facial_profile import FacialProfile
+import numpy as np
 # interface with the plugin to execute actionable commands
 # send a string command directly to be executed upon realization of visual cue
 from Plugins.WatcherPlugin.watcher_plugin import PyPPA_WatcherPlugin
-
+import pyautogui
 
 # TODO: Improve greeting and possibly add object detection?
 class BackgroundWatcher(object):
@@ -89,8 +90,39 @@ class BackgroundWatcher(object):
                     break
             face_names.append(name)
         self.frame_data['face_names'] = face_names
+
         # TODO: Figure out how to store the area just around an identified face
         self.frame_data['images'] = [None for n in face_names]
+
+        # get 'cursor' locations from frame
+        hsv = cv2.cvtColor(self.frame_data['frame'], cv2.COLOR_BGR2HSV)
+        lower_green = np.array([50, 50, 70])
+        upper_green = np.array([80, 255, 255])
+        mask = cv2.inRange(hsv, lower_green, upper_green)
+        mask = cv2.erode(mask, None, iterations=2)
+        mask = cv2.dilate(mask, None, iterations=2)
+        cv2.imwrite('maskImage.png', mask)
+        cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
+                                cv2.CHAIN_APPROX_SIMPLE)[-2]
+        if len(cnts) == 2:
+            # 2 points are needed for easy 'click' functionality
+            centers = []
+            for c in cnts:
+                m = cv2.moments(c)
+                center = (int((m['m10'] / m['m00'])), int((m['m01'] / m['m00'])))
+                centers.append(center)
+            mid_x = np.median([centers[0][0], centers[1][0]])
+            mid_y = np.median([centers[0][1], centers[1][1]])
+            pyautogui.moveTo(x=mid_x, y=mid_y)
+
+            from scipy.spatial.distance import euclidean
+            if euclidean(u=centers[0], v=centers[1]) < 30:
+                pyautogui.click(x=mid_x, y=mid_y)
+
+            full_size = pyautogui.size()
+
+            self.frame_data['cursor_centers'] = centers
+
         # pickle the dict so that external plugins can work with visual data
         # SUPER IMPORTANT FILE FOR OTHER PLUGINS THAT WANT VISUAL CUES
         frame_data_path = [DATA_DIR, 'public_pickles', 'frame_data.p']

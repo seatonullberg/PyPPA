@@ -49,6 +49,8 @@ class PyPPA_WebBrowserPlugin(BasePlugin):
                 self.open_canvas()
             else:
                 self.catch_all(self.command_dict['premodifier'])
+        # return to standard awake context in Listener
+        # no sense in including context loop to limit users to webbrowser commands here
 
     '''
     --------------------------------------------------------------------------------------------------------
@@ -56,9 +58,8 @@ class PyPPA_WebBrowserPlugin(BasePlugin):
     --------------------------------------------------------------------------------------------------------
     '''
 
-    def catch_all(self, spelling):
-        self.command = self.command.replace(spelling, '')
-        command_no_spaces = self.command.replace(' ', '')
+    def catch_all(self, search_query):
+        command_no_spaces = search_query.replace(' ', '')
         driver = webdriver.Firefox()
         driver.get(r'http://www.'+command_no_spaces+'.com/')
         self.isBlocking = False
@@ -75,7 +76,8 @@ class PyPPA_WebBrowserPlugin(BasePlugin):
         self.listener().pre_buffer = 10
         sub_command = self.listener().listen_and_convert()
         beta = GoogleSearchBeta(sub_command)
-        beta.function_handler(driver)
+        # pass the driver for function handler to use
+        beta.function_handler(args={'driver': driver})
         self.isBlocking = False
 
     def netflix_search(self, search_query):
