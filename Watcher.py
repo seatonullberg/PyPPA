@@ -12,7 +12,7 @@ import numpy as np
 from Plugins.WatcherPlugin.watcher_plugin import PyPPA_WatcherPlugin
 import pyautogui
 
-# TODO: Improve greeting and possibly add object detection?
+
 class BackgroundWatcher(object):
 
     def __init__(self):
@@ -111,20 +111,27 @@ class BackgroundWatcher(object):
                 m = cv2.moments(c)
                 center = (int((m['m10'] / m['m00'])), int((m['m01'] / m['m00'])))
                 centers.append(center)
+
+            # get x and y midpoint of the 2 color blobs
             mid_x = np.median([centers[0][0], centers[1][0]])
             mid_y = np.median([centers[0][1], centers[1][1]])
-            pyautogui.moveTo(x=mid_x, y=mid_y)
+            # get display dimensions
+            screen_width, screen_height = pyautogui.size()
+            # scale movement from OpenCV display to full display
+            scaled_x = (screen_width/hsv.shape[0])*mid_x
+            scaled_y = (screen_height/hsv.shape[1])*mid_y
+            # invert lateral movement so the cursor moves naturally
+            scaled_x = screen_width - scaled_x
+            pyautogui.moveTo(x=scaled_x, y=scaled_y)
 
             from scipy.spatial.distance import euclidean
             if euclidean(u=centers[0], v=centers[1]) < 30:
                 pyautogui.click(x=mid_x, y=mid_y)
 
-            full_size = pyautogui.size()
-
             self.frame_data['cursor_centers'] = centers
 
         # pickle the dict so that external plugins can work with visual data
-        # SUPER IMPORTANT FILE FOR OTHER PLUGINS THAT WANT VISUAL CUES
+        # SUPER IMPORTANT FILE FOR OTHER PLUGINS THAT USE VISUAL CUES
         frame_data_path = [DATA_DIR, 'public_pickles', 'frame_data.p']
         pickle.dump(self.frame_data, open(os.path.join('', *frame_data_path), 'wb'))
 
@@ -134,6 +141,7 @@ class BackgroundWatcher(object):
         for f in funcs:
             Thread(target=getattr(BackgroundWatcher, f), args=(self,)).start()
 
+    # TODO: add more greeting options
     def task_determine_greeting(self):
         for name in self.frame_data['face_names']:
             try:

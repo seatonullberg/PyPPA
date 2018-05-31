@@ -1,7 +1,6 @@
-'''
-Collect books from the Gutenberg Project as raw text for model training
-'''
-# TODO: Revise line cleaning
+# Collect books from the Gutenberg Project as raw text for model training
+
+
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -14,13 +13,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', default=None, help='Path to where book text will be stored')
     parser.add_argument('--max_id', default=60000, type=int, help='Book id to iterate to')
+    parser.add_argument('--start_id', default=0, type=int, help='Book id to start iteration on')
     args = parser.parse_args()
     collect(args)
 
 
 def collect(args):
-    pbar = tqdm(total=args.max_id, unit=' Book IDs')
-    count = 0
+    pbar = tqdm(total=(args.max_id-args.start_id), unit=' Book IDs')
+    count = args.start_id
     while count < args.max_id:
         r = requests.get('https://www.gutenberg.org/files/{c}/{c}-0.txt'.format(c=count))
         if r.status_code != 200:

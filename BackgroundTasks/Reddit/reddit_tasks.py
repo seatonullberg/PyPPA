@@ -1,13 +1,7 @@
-from tqdm import tqdm
-import sqlite3
 import praw
-import time
-from praw.models import MoreComments
 import re
 import os
-import pickle
 import multiprocessing
-from Crypto.Hash import SHA256
 from private_config import REDDIT_USERNAME, REDDIT_USER_AGENT, REDDIT_SECRET, REDDIT_CLIENT_ID, DATA_DIR
 
 BOT = praw.Reddit(client_id=REDDIT_CLIENT_ID,
@@ -69,7 +63,6 @@ def archive_text():
     past_urls = [url.replace('\n', '') for url in open(os.path.join('', *past_urls_path), 'r').readlines()]
     # iterate over the 100 top posts
     for post in BOT.subreddit('popular').hot(limit=100):
-        all_post_comments = []
         # ignore previously archived posts
         if post.url in past_urls:
             continue
@@ -77,7 +70,11 @@ def archive_text():
         elif post.stickied:
             continue
         else:
-            print('Archiving text from: {}'.format(post.title))
+            print('Archiving {c} comments from: {t}\n'.format(
+                                                              t=post.title,
+                                                              c=len(post.comments.list()),
+                                                             )
+                  )
             # add this new url to old url list for future reference
             with open(os.path.join('', *past_urls_path), 'a') as f:
                 f .write(post.url+'\n')
@@ -88,7 +85,7 @@ def archive_text():
         # write unstructured clean text to file
         comments_path = [DATA_DIR, 'text', 'Reddit', 'comments.txt']
         with open(os.path.join('', *comments_path), 'a') as f:
-            for comment in tqdm(post.comments.list(), total=len(post.comments.list()), unit=' comments'):
+            for comment in post.comments.list():
                 if comment.author == 'AutoModerator':
                     continue
                 elif comment.body in null_comments:
@@ -101,7 +98,7 @@ def archive_text():
     print('Reddit text archiving complete.')
 
     # TODO...after testing the sentence vectors:
-    # conversationally structured next
+    # conversationally structured text
     # - hash the sentence then use as a table name and .p filename
     # - common responses to this sentence are stored in the table
     # - the sentence vector is stored in the .p file
