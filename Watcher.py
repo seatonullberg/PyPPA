@@ -101,7 +101,6 @@ class BackgroundWatcher(object):
         mask = cv2.inRange(hsv, lower_green, upper_green)
         mask = cv2.erode(mask, None, iterations=2)
         mask = cv2.dilate(mask, None, iterations=2)
-        cv2.imwrite('maskImage.png', mask)
         cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
                                 cv2.CHAIN_APPROX_SIMPLE)[-2]
         if len(cnts) == 2:

@@ -1,14 +1,18 @@
-from selenium.common import exceptions
+import time
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
+import multiprocessing
+from multiprocessing import Process
+
+from Plugins.WebBrowserPlugin.google_search_beta import GoogleSearchBeta
+from Plugins.WebBrowserPlugin.netflix_search_beta import NetflixSearchBeta
+from private_config import NETFLIX_EMAIL, NETFLIX_PASSWORD, NETFLIX_USER, FIREFOX_PROFILE_PATH
 from Speaker import vocalize
 from Plugins.base_plugin import BasePlugin
 from mannerisms import Mannerisms
-from Plugins.WebBrowserPlugin.google_search_beta import GoogleSearchBeta
-from private_config import NETFLIX_EMAIL, NETFLIX_PASSWORD, NETFLIX_USER, FIREFOX_PROFILE_PATH
 
 
 # TODO: Make the netflix function a beta and have it hold attention for full site navigation by voice
@@ -18,11 +22,10 @@ class PyPPA_WebBrowserPlugin(BasePlugin):
         # remember to place the single word spelling last to avoid 'best spelling' issue
         self.COMMAND_HOOK_DICT = {'open': ['open up', 'open it', 'open'],
                                   'search_google': ['search google for', 'search for', 'google'],
-                                  'search_netflix': ['search netflix for', 'search netflix', 'netflix'],
                                   'search_youtube': ['search youtube for', 'search youtube', 'youtube']}
-        self.MODIFIERS = {'open': {'canvas': ['canvas', 'e learning']},
+        self.MODIFIERS = {'open': {'canvas': ['canvas', 'e learning'],
+                                   'netflix': ['netflix']},
                           'search_google': {},
-                          'search_netflix': {},
                           'search_youtube': {}
                           }
         super().__init__(command=command,
@@ -37,9 +40,6 @@ class PyPPA_WebBrowserPlugin(BasePlugin):
         if self.command_dict['command_hook'] == 'search_google':
             # prepare for a google search
             self.google_search(self.command_dict['premodifier'])
-        elif self.command_dict['command_hook'] == 'search_netflix':
-            # prepare for a netflix search
-            self.netflix_search(self.command_dict['premodifier'])
         elif self.command_dict['command_hook'] == 'search_youtube':
             # prepare youtube search
             self.youtube_search(self.command_dict['premodifier'])
@@ -47,6 +47,8 @@ class PyPPA_WebBrowserPlugin(BasePlugin):
             # the open hook is being used
             if self.command_dict['modifier'] == 'canvas':
                 self.open_canvas()
+            elif self.command_dict['modifier'] == 'netflix':
+                self.open_netflix()
             else:
                 self.catch_all(self.command_dict['premodifier'])
         # return to standard awake context in Listener
@@ -69,24 +71,12 @@ class PyPPA_WebBrowserPlugin(BasePlugin):
         driver.get(r'https://ufl.instructure.com/')
         self.isBlocking = False
 
-    def google_search(self, search_query):
-        driver = webdriver.Firefox()
-        driver.get('https://www.google.com/search?q='+search_query)
-        vocalize(Mannerisms('request_subsequent_command', None).final_response)
-        self.listener().pre_buffer = 10
-        sub_command = self.listener().listen_and_convert()
-        beta = GoogleSearchBeta(sub_command)
-        # pass the driver for function handler to use
-        beta.function_handler(args={'driver': driver})
-        self.isBlocking = False
-
-    def netflix_search(self, search_query):
-        # format the search url
-        search_query = search_query.replace(' ', '%20')
-
+    def open_netflix(self):
         profile = webdriver.FirefoxProfile(FIREFOX_PROFILE_PATH)
         driver = webdriver.Firefox(profile)
         driver.get('https://www.netflix.com/')
+        # move to corner for easy cursor manipulation later
+        driver.set_window_position(x=0, y=0)
         # sign in
         driver.find_element_by_link_text('Sign In').click()
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'login-body')))
@@ -98,20 +88,27 @@ class PyPPA_WebBrowserPlugin(BasePlugin):
         # select my profile
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'profile-icon')))
         driver.find_element_by_xpath("//span[text()='{}']".format(NETFLIX_USER)).click()
-
-        # wait for search and navigate to search url
+        # wait for search to be available
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'searchTab')))
-        if search_query != '':
-            driver.get('https://www.netflix.com/search?q='+search_query)
-            # wait for results and click the first result for now
-            WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CLASS_NAME, 'suggestionRailContainer')))
-            title_card = driver.find_element_by_xpath('//div[@id="title-card-0-0"]')
-            ActionChains(driver).move_to_element(title_card).perform()
-            play_link = driver.find_element_by_xpath('//div[@id="title-card-0-0"]/div/a')
-            play_link = play_link.get_attribute('href')
-            driver.get(play_link)
-            # go full screen
-            driver.set_window_size(1920, 1080)
+
+        # initialize the beta plugin for greater control in separate process
+        beta = NetflixSearchBeta('go back')
+        nsb_thread = Process(target=beta.function_handler(args={'driver': driver}), name='netflix_search_beta')
+        while beta.isBlocking:
+            time.sleep(0.1)
+        # after context is released from beta terminate its process
+        nsb_thread.terminate()
+        self.isBlocking = False
+
+    def google_search(self, search_query):
+        driver = webdriver.Firefox()
+        driver.get('https://www.google.com/search?q='+search_query)
+        vocalize(Mannerisms('request_subsequent_command', None).final_response)
+        self.listener().pre_buffer = 10
+        sub_command = self.listener().listen_and_convert()
+        beta = GoogleSearchBeta(sub_command)
+        # pass the driver for function handler to use
+        beta.function_handler(args={'driver': driver})
         self.isBlocking = False
 
     def youtube_search(self, search_query):
