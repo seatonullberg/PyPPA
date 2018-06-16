@@ -1,16 +1,17 @@
-'''
-Script to generate a config template with no user input
---private data to be input by user
-'''
 import os
-from collections import OrderedDict
+import pickle
 
 
 class ConfigurationGenerator(object):
 
     def __init__(self):
         self.base_path = os.getcwd()
+        # this will become an object
+        self.configuration = None
 
+    '''
+    File name properties
+    '''
     @property
     def config_fn(self):
         return 'configuration.txt'
@@ -44,8 +45,9 @@ class ConfigurationGenerator(object):
         with open(os.path.join(self.base_path, self.config_tmp_fn), 'w') as config_tmp:
             config_tmp.write('__BLACKLIST__\n')
 
-        # open and concat the tmp files in an organized manner
-        # handle the environment variables
+        '''
+        Handle Environment Variables tmp
+        '''
         with open(os.path.join(self.base_path, self.environment_tmp_fn), 'r') as ev_tmp:
             lines = ev_tmp.read().splitlines()
             lines = [l for l in lines if l != '']
@@ -56,7 +58,9 @@ class ConfigurationGenerator(object):
             for k in lines:
                 config_tmp.write(k+'\n')
 
-        # handle the plugins
+        '''
+        Handle Plugins tmp
+        '''
         with open(os.path.join(self.base_path, self.plugin_tmp_fn), 'r') as plugin_tmp:
             lines = plugin_tmp.read().splitlines()
             lines = [l for l in lines if l != '']
@@ -67,7 +71,9 @@ class ConfigurationGenerator(object):
             for k in lines:
                 config_tmp.write(k+'\n')
 
-        # handle the background tasks
+        '''
+        Handle Background Tasks tmp
+        '''
         with open(os.path.join(self.base_path, self.background_tmp_fn), 'r') as background_tmp:
             lines = background_tmp.read().splitlines()
             lines = [l for l in lines if l != '']
@@ -78,7 +84,9 @@ class ConfigurationGenerator(object):
             for k in lines:
                 config_tmp.write(k+'\n')
 
-        # run tests on the final configuration before writing it to file
+        '''
+        Run tests and raise errors
+        '''
         results = self._run_tests()
         # raise errors if exist
         for err in results['environment_errors']:
@@ -98,7 +106,9 @@ class ConfigurationGenerator(object):
         # delete configuration.tmp if errors do not cause an exit
         os.remove(os.path.join(self.base_path, self.config_tmp_fn))
 
-        # write the configuration.txt file to the specifications of the config_dict
+        '''
+        Write configuration.txt from config_dict data
+        '''
         config_dict = results['config_dict']
         with open(os.path.join(self.base_path, self.config_fn), 'w') as final_config:
             # fill out the blacklist
@@ -126,6 +136,16 @@ class ConfigurationGenerator(object):
                 final_config.write(header+'\n')
                 for bt in config_dict['background_tasks'][header]:
                     final_config.write(bt+'\n')
+
+        '''
+        Construct picklable configuration object from config_dict data
+        '''
+        config_obj = Configuration(config_dict)
+        # pickle the object
+        data_dir = config_obj.environment_variables['__BASE__']['DATA_DIR']
+        config_pickle_path = [os.getcwd(), data_dir, 'public_pickles', 'configuration.p']
+        config_pickle_path = os.path.join('', *config_pickle_path)
+        pickle.dump(config_obj, open(config_pickle_path, 'wb'))
 
     def _scan_base_environ(self):
         '''
@@ -444,6 +464,75 @@ class ConfigurationGenerator(object):
                 pass
 
         return d
+
+
+class Configuration(object):
+
+    def __init__(self, config_dict):
+        self.config_dict = config_dict
+
+    @property
+    def port_map(self, start=5555):
+        # start is the port number at which mapping begins
+        # map all plugins and betas to a port for client server connections
+        pmap = {}
+        for key, val in self.plugins.items():
+            pmap[key] = start
+            start += 1
+            for v in val:
+                pmap[v] = start
+                start += 1
+        return pmap
+
+    @property
+    def environment_variables(self):
+        # nested dict of environment variables by header
+        env_dict = {}
+        # since environment variables are unique only to a plugin folder (not individual betas)
+        # use headers as keys rather than filenames without extensions such as in plugins
+        # i realize this is not ideal...
+        for key, val in self.config_dict['environment_variables'].items():
+            env_dict[key] = {}
+            for v in val:
+                v = v.split('=')
+                var_name = v[0]
+                var_value = v[1]
+                env_dict[key][var_name] = var_value
+        return env_dict
+
+    @property
+    def plugins(self):
+        plugins_dict = {}
+        for header in self.config_dict['plugins']:
+            plugin = None
+            betas = []
+            for fname in self.config_dict['plugins'][header]:
+                name = fname.replace('.py', '')
+                if name.endswith('_plugin'):
+                    plugin = name
+                elif name.endswith('_beta'):
+                    betas.append(name)
+            # use plugin name as key and list of beta names as values
+            plugins_dict[plugin] = betas
+        return plugins_dict
+
+    @property
+    def background_tasks(self):
+        # list of background tasks
+        background_list = []
+        for key, val in self.config_dict['background_tasks'].items():
+            # the headers are essentially redundant for background tasks at this stage in their development
+            for v in val:
+                background_list.append(v)
+        return background_list
+
+    def rebuild(self):
+        '''
+        Rebuild the configuration object to reflect any changes made to the directory or config file
+        :return: None
+        '''
+        cg = ConfigurationGenerator()
+        cg.make()
 
 
 if __name__ == "__main__":
