@@ -141,6 +141,7 @@ class BackgroundWatcher(object):
             Thread(target=getattr(BackgroundWatcher, f), args=(self,)).start()
 
     # TODO: add more greeting options
+    # move greetings to another plugin
     def task_determine_greeting(self):
         for name in self.frame_data['face_names']:
             try:

@@ -1,6 +1,6 @@
 import os
 import pickle
-
+import copy
 
 class ConfigurationGenerator(object):
 
@@ -142,8 +142,7 @@ class ConfigurationGenerator(object):
         '''
         config_obj = Configuration(config_dict)
         # pickle the object
-        data_dir = config_obj.environment_variables['__BASE__']['DATA_DIR']
-        config_pickle_path = [os.getcwd(), data_dir, 'public_pickles', 'configuration.p']
+        config_pickle_path = [os.getcwd(), 'public_pickles', 'configuration.p']
         config_pickle_path = os.path.join('', *config_pickle_path)
         pickle.dump(config_obj, open(config_pickle_path, 'wb'))
 
@@ -506,14 +505,20 @@ class Configuration(object):
         for header in self.config_dict['plugins']:
             plugin = None
             betas = []
+            command_hook_dict = None
+            modifiers = None
             for fname in self.config_dict['plugins'][header]:
                 name = fname.replace('.py', '')
+                # extract command hook dict and modifiers to add to the config
+                command_hook_dict, modifiers = self._extract_chd_and_m(name=name)
                 if name.endswith('_plugin'):
                     plugin = name
                 elif name.endswith('_beta'):
                     betas.append(name)
-            # use plugin name as key and list of beta names as values
-            plugins_dict[plugin] = betas
+            plugins_dict[plugin] = {}
+            plugins_dict[plugin]['betas'] = betas
+            plugins_dict[plugin]['command_hook_dict'] = command_hook_dict
+            plugins_dict[plugin]['modifiers'] = modifiers
         return plugins_dict
 
     @property
@@ -533,6 +538,31 @@ class Configuration(object):
         '''
         cg = ConfigurationGenerator()
         cg.make()
+
+    def _extract_chd_and_m(self, name):
+        '''
+        import the command hook dict and modifiers from a temporary instance of the plugin or beta passed in
+        :param name: str() name of the plugin or beta to extract from
+        :return: dict() command_hook_dict, dict() modifiers
+        '''
+        # convert name to class name
+        assert type(name) == str()
+        plugin_class_name = name.split('_')
+        plugin_class_name = [p.capitalize() for p in plugin_class_name]
+        plugin_class_name = ''.join(plugin_class_name)
+        _path = "Plugins.{}".format(name)
+        obj_plugin = None
+        import_str = "from {_path} import {_class} as obj_plugin".format(_path=_path,
+                                                                         _class=plugin_class_name)
+        # import the plugin class to obj_plugin
+        exec(import_str)
+        # tooltips says 'uncallable' because it doesn't know obj_plugin is a class
+        obj_plugin = obj_plugin()
+        chd = copy.deepcopy(obj_plugin.COMMAND_HOOK_DICT)
+        m = copy.deepcopy(obj_plugin.MODIFIERS)
+        # force delete to ensure no floating plugin objects taking up memory
+        del obj_plugin
+        return chd, m
 
 
 if __name__ == "__main__":

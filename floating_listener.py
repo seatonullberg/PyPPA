@@ -53,8 +53,8 @@ class FloatingListener(object):
             with sr.AudioFile(self.WAVE_OUTPUT_FILENAME) as source:
                 audio = r.record(source)
         except FileNotFoundError:
-            return ''
-
+            print('recognize was unable to find: {}'.format(self.WAVE_OUTPUT_FILENAME))
+            raise
         try:
             command = r.recognize_google(audio_data=audio)
         except sr.UnknownValueError:
