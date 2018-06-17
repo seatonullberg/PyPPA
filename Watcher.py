@@ -2,7 +2,6 @@ import face_recognition
 import cv2
 import datetime
 import os
-from private_config import DATA_DIR
 import pickle
 from threading import Thread
 from facial_profile import FacialProfile

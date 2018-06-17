@@ -2,6 +2,7 @@ import os
 import pickle
 import copy
 
+
 class ConfigurationGenerator(object):
 
     def __init__(self):
@@ -546,18 +547,25 @@ class Configuration(object):
         :return: dict() command_hook_dict, dict() modifiers
         '''
         # convert name to class name
-        assert type(name) == str()
+        assert type(name) == str
         plugin_class_name = name.split('_')
         plugin_class_name = [p.capitalize() for p in plugin_class_name]
         plugin_class_name = ''.join(plugin_class_name)
-        _path = "Plugins.{}".format(name)
-        obj_plugin = None
-        import_str = "from {_path} import {_class} as obj_plugin".format(_path=_path,
-                                                                         _class=plugin_class_name)
+
         # import the plugin class to obj_plugin
-        exec(import_str)
-        # tooltips says 'uncallable' because it doesn't know obj_plugin is a class
-        obj_plugin = obj_plugin()
+        mod_str = "Plugins.{cn}.{n}".format(cn=plugin_class_name,
+                                            n=name)
+        # modified from https://stackoverflow.com/questions/8790003/dynamically-import-a-method-in-a-file-from-a-string
+        try:
+            module = __import__(mod_str, fromlist=[plugin_class_name])
+        except ModuleNotFoundError:
+            # a beta plugin cannot be easily loaded
+            # for now return None for beta plugins
+            # TODO: find a workaround
+            return None, None
+
+        obj_plugin = getattr(module, plugin_class_name)()
+        # return the command hook dict and modifiers
         chd = copy.deepcopy(obj_plugin.COMMAND_HOOK_DICT)
         m = copy.deepcopy(obj_plugin.MODIFIERS)
         # force delete to ensure no floating plugin objects taking up memory

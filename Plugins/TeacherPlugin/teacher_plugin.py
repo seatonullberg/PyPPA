@@ -2,18 +2,19 @@ import wikipedia
 import requests
 from Speaker import vocalize
 from bs4 import BeautifulSoup
-from Plugins.base_plugin import BasePlugin
+from base_plugin import BasePlugin
 
 
 # TODO: chunk the instructions for more efficient vocalization
-class PyPPA_TeacherPlugin(BasePlugin):
+class TeacherPlugin(BasePlugin):
 
-    def __init__(self, command):
+    def __init__(self):
+        self.name = 'teacher_plugin'
         self.COMMAND_HOOK_DICT = {'teach_me': ['teach me about', 'teach me']}
         self.MODIFIERS = {'teach_me': {'how_to': ['how too', 'hot to', 'hot too', 'how to']}}
-        super().__init__(command=command,
-                         command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS)
+        super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
+                         modifiers=self.MODIFIERS,
+                         name=self.name)
 
     def function_handler(self, args=None):
         # this is not robust for future intraplugin changes
@@ -63,5 +64,3 @@ class PyPPA_TeacherPlugin(BasePlugin):
             print(reading_text)
             vocalize('ok, this is how to ' + query)
             vocalize(reading_text)
-
-        self.isBlocking = False

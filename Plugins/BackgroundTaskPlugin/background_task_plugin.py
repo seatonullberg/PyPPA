@@ -1,12 +1,13 @@
 import multiprocessing
 from multiprocessing import Process
 from Speaker import vocalize
-from Plugins.base_plugin import BasePlugin
+from base_plugin import BasePlugin
 
 
-class PyPPA_BackgroundTaskPlugin(BasePlugin):
+class BackgroundTaskPlugin(BasePlugin):
 
-    def __init__(self, command):
+    def __init__(self):
+        self.name = 'background_task_plugin'
         self.COMMAND_HOOK_DICT = {'run': ['start running my', 'start running',
                                           'run my', 'start my', 'start', 'run'],
                                   'stop': ['stop running my', 'stop running',
@@ -20,9 +21,9 @@ class PyPPA_BackgroundTaskPlugin(BasePlugin):
                           }
         # run and stop have the same modifiers
         self.MODIFIERS['stop'] = self.MODIFIERS['run']
-        super().__init__(command=command,
-                         command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS)
+        super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
+                         modifiers=self.MODIFIERS,
+                         name=self.name)
 
     def function_handler(self, args=None):
         current_processes = multiprocessing.active_children()
