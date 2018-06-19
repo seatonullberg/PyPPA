@@ -1,6 +1,8 @@
 #!/usr/bin/python
 import pickle
 import os
+import time
+import socket
 from multiprocessing import Process
 from ctypes import *
 from Listener import Listener
@@ -26,11 +28,10 @@ if __name__ == "__main__":
 
     # pickle the initial state of the floating listener
     o = Listener()
+    # o.reset_threshold()
     o_path = [os.getcwd(), 'public_pickles', 'listener.p']
     pickle.dump(o, open(os.path.join('public_pickles', 'listener.p'), 'wb'))
 
-    # initialize sleep plugin in fresh thread
+    # initialize sleep plugin in child process
     o = SleepPlugin()
-    o.make_active()
-    Process(target=o.mainloop, name=o.name).start()
-    print('all good my dude')
+    Process(target=o.initialize, name=o.name).start()

@@ -1,11 +1,10 @@
 import pickle
 import os
-import socketserver
 import socket
-import time
-import copy
-import multiprocessing
+from queue import Queue
 from threading import Thread
+import struct
+import time
 
 
 class BasePlugin(object):
@@ -22,16 +21,21 @@ class BasePlugin(object):
         self.acceptsCommand = False
         # inform the plugin of its active status
         self.isActive = False
-        # store server to be able to shut it down
-        self.server = None
-        # store any commands coming by message here to access in mainloop
-        self.incoming_command = None
+        # establish queues for listening and sending
+        self.send_queue = Queue()
+        self.listen_queue = Queue()
+        self.cs = None  # client server object goes here
 
     '''
     -------------------------------------------------
     General use functions for normal Plugin operation
     -------------------------------------------------
     '''
+    def initialize(self, cmd=None):
+        # call this as target of a new process for smooth transition
+        self.make_active()
+        self.mainloop(cmd)
+
     def mainloop(self, cmd=None):
         '''
         The loop which keeps the plugin alive until an explicit termination call is made
@@ -46,17 +50,19 @@ class BasePlugin(object):
         '''
         while True:
             self.reset_command_dict()
+            # check the queue for messages from server
+            if not self.listen_queue.empty():
+                msg = self.listen_queue.get()
+                msg = msg.decode()
+                name, cmd = msg.split('$')
+                if self.name == name:
+                    self.make_active()
             if self.isActive:
+                print('{} is active'.format(self.name))
                 if cmd is None:
                     cmd = self.listener.listen_and_convert()
-                if self.incoming_command is not None:
-                    cmd = copy.deepcopy(self.incoming_command)
-                    self.incoming_command = None
-                print("mainloop cmd={}".format(cmd))
                 self.command_parser(cmd)
                 self.function_handler()
-            else:
-                time.sleep(0.5)
             # reset if there was an initial cmd so as not to repeat the same command
             cmd = None
 
@@ -114,8 +120,8 @@ class BasePlugin(object):
             self.command_dict['premodifier'] = command[ch_range[1]+1:]
 
     def function_handler(self, args=None):
+        # test server availability
         # use args in special use cases where this general behavior needs to be overwritten
-        print("finction_handler command_dict={}".format(self.command_dict))
         if self.command_dict['command_hook'] in dir(self):
             func = getattr(self, self.command_dict['command_hook'])
             # run the collected function with no args
@@ -136,96 +142,55 @@ class BasePlugin(object):
         self.acceptsCommand = None
 
     def make_active(self):
-        # prepares the plugin for active use
         self.isActive = True
-        # start a server only if one does not exist yet
-        if self.server is None:
-            # start server on own port
+        if self.cs is None:
             _port = self.config_obj.port_map[self.name]
-            thread_name = "{}_server_thread".format(self.name)
-            Thread(target=self.start_server, args=(_port,), name=thread_name).start()
+            # this port list is lazy because it assumes all plugins are connected which is not likely to happen
+            # UDP makes it easy to do this way
+            _port_list = [v for k, v in self.config_obj.port_map.items()]
+            self.cs = ClientServer(port=_port,
+                                   port_list=_port_list,
+                                   send_queue=self.send_queue,
+                                   listen_queue=self.listen_queue)
+
+            Thread(target=self.cs.listen).start()
+            Thread(target=self.cs.send).start()
 
     # provide namespace to overwrite for design symmetry
     def update_plugin(self, args=None):
         pass
 
     '''
-    ----------------------------------------------
-    Client and Server threads for message handling
-    ----------------------------------------------
-    '''
-
-    def send_message(self, data, port, host='localhost'):
-        '''
-        Call with data whenever a message needs to be sent out to a server
-        :param port: int() TCP Port to send message to (get from config port_map)
-        :param host: str() default 'localhost' for TCP connection
-        :param data: str() the message being sent
-        :return: None
-        '''
-        # Create a socket (SOCK_STREAM means a TCP socket)
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            # Connect to server and send data
-            sock.connect((host, port))
-            sock.sendall(bytes(data, "utf-8"))
-            sock.close()
-        print("send_message sent data={}".format(data))
-
-    def start_server(self, port, host='localhost'):
-        '''
-        Creates the listening server socket for the plugin to get messages
-        :param port: int() TCP Port to serve (get from config port_map)
-        :param host: str() default 'localhost' for TCP connection
-        :return: None (redirects messages to self.handle_server_message)
-        '''
-        tcps = TCPServer(host, port, TCPHandler)
-        with tcps as server:
-            # grant access to server from entire class (allow shutdown outside thread)
-            self.server = server
-            # add reference to plugin for handler
-            server.plugin = self
-            # Activate the server; run until explicit shutdown
-            server.serve_forever()
-
-    def handle_server_message(self, data):
-        # messages are formatted as follows:
-        # clientA sends -> "b_plugin$this is a command" -> to serverB
-        data = data.decode("utf-8")
-        name, comm = data.split('$')
-        if name == self.name:
-            # make self ready for activity and let mainloop process the command
-            self.incoming_command = comm
-            self.make_active()
-        print("handle_server_message data={}".format(data))
-    '''
     ---------------------------------------------------------
     Methods for gracefully shifting control to another plugin
     ---------------------------------------------------------
     '''
+
     def pass_and_remain(self, name, cmd):
-        # issue control to another plugin but remain active in background
+        '''
+        send message to new plugin and remain in background
+        :param name: name of plugin message is going to
+        :param cmd: command sent to that plugin
+        :return: None
+        '''
         self.isActive = False
-        port = self.config_obj.port_map[name]
-        message_str = "{n}${c}".format(n=name,
-                                       c=cmd)
-        self.send_message(data=message_str,
-                          port=port)
+        message_str = "{}${}".format(name, cmd)
+        self.send_queue.put(message_str)
 
     def pass_and_terminate(self, name, cmd):
-        # issue control to another plugin and self terminate subsequently
+        '''
+        send message to new plugin and terminate subsequently
+        :param name: name of plugin message is going to
+        :param cmd: command sent to that plugin
+        :return: None
+        '''
         self.isActive = False
-        port = self.config_obj.port_map[name]
-        message_str = "{n}${c}".format(n=name,
-                                       c=cmd)
-        self.send_message(data=message_str,
-                          port=port)
-        # kill the server
-        if self.server is not None:
-            self.server.shutdown()
-        # kill the process
-        print(multiprocessing.current_process())
-        multiprocessing.current_process().terminate()
-        print('successful process termination')
+        message_str = "{}${}".format(name, cmd)
+        self.send_queue.put(message_str)
+        time.sleep(.5)  # not ideal
+        self.send_queue.put('quit')
+        time.sleep(.5)  # not ideal
+        os.kill(os.getpid(), 9)
 
     '''
     -------------------------------------------------------------------------
@@ -287,29 +252,92 @@ class BasePlugin(object):
 
 
 '''
-------------------------------------------------------
-Classes required to initiate a SocketServer connection
-------------------------------------------------------
+------------------------------------------
+UDP messaging class to synchronize plugins
+------------------------------------------
 '''
 
 
-class TCPServer(socketserver.TCPServer):
+class ClientServer(object):
 
-    def __init__(self, host, port, handler):
-        super().__init__(RequestHandlerClass=handler,
-                         server_address=(host, port))
+    def __init__(self,
+                 port,
+                 port_list,
+                 send_queue,
+                 listen_queue,
+                 group='224.3.29.71'):
+        self.port = port
+        self.port_list = port_list
+        self.send_queue = send_queue
+        self.listen_queue = listen_queue
+        self.group = group
 
+    def send(self):
+        # Create the datagram socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Set a timeout so the socket does not block indefinitely when trying
+        # to receive data.
+        sock.settimeout(0.25)
+        # Set the time-to-live for messages to 1 so they do not go past the
+        # local network segment.
+        ttl = struct.pack('b', 1)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
 
-class TCPHandler(socketserver.BaseRequestHandler):
-    """
-    The request handler class for our server.
+        while True:
+            # get message to send from the q
+            if not self.send_queue.empty():
+                message = self.send_queue.get()
+                if message == 'quit':
+                    break
+            else:
+                continue
+            for p in self.port_list:
+                #print('{} sending {} to {}'.format(self.port,
+                #                                   message,
+                #                                   p))
+                sock.sendto(message.encode(), (self.group, p))
+                '''
+                ------------------------------------------------------------------
+                If I wanted to do a response based check this is how it would work
 
-    It is instantiated once per connection to the server, and must
-    override the handle() method to implement communication to the
-    client.
-    """
+                # Look for responses from all recipients
+                while True:
+                    try:
+                        data, server = sock.recvfrom(16)
+                    except socket.timeout:
+                        break
+                    else:
+                        print(' {} received {} from {}'.format(self.port,
+                                                               data,
+                                                               server))
+                ------------------------------------------------------------------
+                '''
 
-    def handle(self):
-        # self.request is the TCP socket connected to the client
-        data = self.request.recv(1024).strip()
-        self.server.plugin.handle_server_message(data)
+    def listen(self):
+        server_address = ('', self.port)
+        # Create the socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Bind to the server address
+        sock.bind(server_address)
+        # Tell the operating system to add the socket to the multicast group
+        # on all interfaces.
+        group = socket.inet_aton(self.group)
+        mreq = struct.pack('4sL', group, socket.INADDR_ANY)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+        # Receive/respond loop
+        while True:
+            data, address = sock.recvfrom(1024)
+            self.listen_queue.put(data)
+            #print(' {} received {} bytes from {}'.format(self.port,
+            #                                             len(data),
+            #                                             address))
+
+            '''
+            ---------------------------------------------------------------------
+            If I wanted to use acknowledgement messages this is how I would do it
+
+            print(' {} sending acknowledgement to {}'.format(self.port,
+                                                             address))
+            sock.sendto('ack'.encode(), address)
+            ---------------------------------------------------------------------
+            '''

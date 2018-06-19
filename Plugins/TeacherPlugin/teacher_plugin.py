@@ -16,32 +16,24 @@ class TeacherPlugin(BasePlugin):
                          modifiers=self.MODIFIERS,
                          name=self.name)
 
-    def function_handler(self, args=None):
-        # this is not robust for future intraplugin changes
-        if self.command_dict['modifier'] != '':
+    def teach_me(self):
+        if self.command_dict['modifier'] == 'how_to':
             self.scrape_wikihow(self.command_dict['postmodifier'])
-            return
-
-        self.basic_teach(self.command_dict['premodifier'])
-
-    def update_database(self):
-        pass
-
-    '''
-    --------------------------------------------------------------------------------------------------------
-    Begin Module Functions
-    --------------------------------------------------------------------------------------------------------
-    '''
+        else:
+            self.basic_teach(self.command_dict['premodifier'])
+        # remain after use
+        self.pass_and_terminate(name='sleep_plugin',
+                             cmd='sleep')
 
     def basic_teach(self, query):
         try:
             summary = wikipedia.summary(query, auto_suggest=True)
-            vocalize('ok, this is what i know about '+query)
-            vocalize(summary)
+            print(summary)
+            #vocalize('ok, this is what i know about '+query)
+            #vocalize(summary)
         except wikipedia.DisambiguationError:
-            vocalize('could you be more specific?')
-
-        self.isBlocking = False
+            print('could you be more specific')
+            #vocalize('could you be more specific?')
 
     def scrape_wikihow(self, query):
         r = requests.get(r'https://www.wikihow.com/'+query)
@@ -58,9 +50,10 @@ class TeacherPlugin(BasePlugin):
             reading_text.append(p_text)
 
         if len(reading_text) < 1:
-            vocalize('sorry, i do not know how to ' + query)
+            # vocalize('sorry, i do not know how to ' + query)
+            print('sorry, I do not know how to '+query)
         else:
             reading_text = ' '.join(reading_text)
             print(reading_text)
-            vocalize('ok, this is how to ' + query)
-            vocalize(reading_text)
+            # vocalize('ok, this is how to ' + query)
+            # vocalize(reading_text)
