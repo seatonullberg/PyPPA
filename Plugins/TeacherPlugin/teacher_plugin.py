@@ -1,11 +1,11 @@
 import wikipedia
 import requests
+# TODO: vocalize needs an I/O overhaul
 from Speaker import vocalize
 from bs4 import BeautifulSoup
 from base_plugin import BasePlugin
 
 
-# TODO: chunk the instructions for more efficient vocalization
 class TeacherPlugin(BasePlugin):
 
     def __init__(self):
@@ -21,19 +21,19 @@ class TeacherPlugin(BasePlugin):
             self.scrape_wikihow(self.command_dict['postmodifier'])
         else:
             self.basic_teach(self.command_dict['premodifier'])
-        # remain after use
+        # terminate after one use
         self.pass_and_terminate(name='sleep_plugin',
-                             cmd='sleep')
+                                cmd='sleep')
 
     def basic_teach(self, query):
         try:
             summary = wikipedia.summary(query, auto_suggest=True)
             print(summary)
-            #vocalize('ok, this is what i know about '+query)
-            #vocalize(summary)
+            # vocalize('ok, this is what i know about '+query)
+            # vocalize(summary)
         except wikipedia.DisambiguationError:
             print('could you be more specific')
-            #vocalize('could you be more specific?')
+            # vocalize('could you be more specific?')
 
     def scrape_wikihow(self, query):
         r = requests.get(r'https://www.wikihow.com/'+query)

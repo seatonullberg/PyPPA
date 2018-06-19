@@ -1,6 +1,4 @@
-import os
 import multiprocessing
-from multiprocessing import Process
 from base_plugin import BasePlugin
 from Speaker import vocalize
 
@@ -22,9 +20,15 @@ class SleepPlugin(BasePlugin):
         Listen for a command and send it to the proper plugin
         :return: None
         '''
-        print("Woken up, speak now")
+        # ask for and collect command
+        print("Awake...")
+        vocalize("how can I help you?")
         cmd = self.listener.listen_and_convert()
         print(cmd)
+
+        # iterate over all plugins to try and find one that supports a command hook found in cmd
+        # do not iterate over the betas -- they must be handled by their own plugin
+        # TODO: move this functionality to a utils file because other plugins will need similar behavior
         for plugin_name in self.config_obj.plugins:
             chd = self.config_obj.plugins[plugin_name]['command_hook_dict']
             for hook in chd:
@@ -38,22 +42,9 @@ class SleepPlugin(BasePlugin):
                             # send message
                             self.pass_and_remain(name=plugin_name, cmd=cmd)
                         else:
-                            # activate and initialize
-                            # this is cut and paste I should move somewhere
-                            plugin_class_name = plugin_name.split('_')
-                            plugin_class_name = [p.capitalize() for p in plugin_class_name]
-                            plugin_class_name = ''.join(plugin_class_name)
-                            # import the plugin class to obj_plugin
-                            mod_str = "Plugins.{cn}.{n}".format(cn=plugin_class_name,
-                                                                n=plugin_name)
-                            module = __import__(mod_str, fromlist=[plugin_class_name])
-                            # remove self from active status
-                            self.isActive = False
-                            # activate and start in a child process
-                            plugin_obj = getattr(module, plugin_class_name)()
-                            Process(target=plugin_obj.initialize, args=(cmd,), name=plugin_obj.name).start()
+                            # initialize without message because plugin is not yet listening
+                            self.initialize_and_remain(name=plugin_name, cmd=cmd)
                         return
 
     def sleep(self):
-        print('sleeping')
-
+        print('Sleeping...')

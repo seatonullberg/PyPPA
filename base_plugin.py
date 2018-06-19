@@ -2,9 +2,9 @@ import pickle
 import os
 import socket
 from queue import Queue
+from multiprocessing import Process
 from threading import Thread
 import struct
-import time
 
 
 class BasePlugin(object):
@@ -58,7 +58,6 @@ class BasePlugin(object):
                 if self.name == name:
                     self.make_active()
             if self.isActive:
-                print('{} is active'.format(self.name))
                 if cmd is None:
                     cmd = self.listener.listen_and_convert()
                 self.command_parser(cmd)
@@ -187,9 +186,40 @@ class BasePlugin(object):
         self.isActive = False
         message_str = "{}${}".format(name, cmd)
         self.send_queue.put(message_str)
-        time.sleep(.5)  # not ideal
         self.send_queue.put('quit')
-        time.sleep(.5)  # not ideal
+        # wait for messages to send
+        while not self.send_queue.empty():
+            continue
+        os.kill(os.getpid(), 9)
+
+    def initialize_and_remain(self, name, cmd):
+        '''
+        Initialize a plugin that is not yet running and then stay in background
+        :param name: name of the plugin to initialize
+        :param cmd: command sent to the plugin
+        :return: None
+        '''
+        self.isActive = False
+        # convert self.name format to ClassName format
+        class_name = name.split('_')
+        class_name = [cn.capitalize() for cn in class_name]
+        class_name = ''.join(class_name)
+        # import the plugin class
+        mod_str = "Plugins.{cn}.{n}".format(cn=class_name,
+                                            n=name)
+        module = __import__(mod_str, fromlist=[class_name])
+        # no message gets sent, the plugin just gets initialized directly with a command
+        plugin_obj = getattr(module, class_name)()
+        Process(target=plugin_obj.initialize, args=(cmd,), name=plugin_obj.name).start()
+
+    def initialize_and_terminate(self, name, cmd):
+        '''
+        Initialize a plugin that is not yet running then immediately terminate
+        :param name: name of the plugin to initialize
+        :param cmd: command sent to the plugin
+        :return: None
+        '''
+        self.initialize_and_remain(name, cmd)
         os.kill(os.getpid(), 9)
 
     '''

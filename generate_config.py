@@ -491,6 +491,7 @@ class Configuration(object):
         # since environment variables are unique only to a plugin folder (not individual betas)
         # use headers as keys rather than filenames without extensions such as in plugins
         # i realize this is not ideal...
+        # TODO: fix to not use headers
         for key, val in self.config_dict['environment_variables'].items():
             env_dict[key] = {}
             for v in val:
