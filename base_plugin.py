@@ -39,12 +39,7 @@ class BasePlugin(object):
     def mainloop(self, cmd=None):
         '''
         The loop which keeps the plugin alive until an explicit termination call is made
-        through self.pass_and_terminate()
-        * call every time a new plugin is initialized
-            - make sure this is only called once over the life of the process
-        * note that while every plugin must be initialized with this function
-          plugins are free to control calls to the function handler themselves
-          this just sets a standard for basic control
+        through self.pass_and_terminate() or self.initialize_and_terminate()
         :param cmd: initial input command to use for direct execution of prerecorded command
         :return: None
         '''
@@ -237,12 +232,12 @@ class BasePlugin(object):
             # load the configuration pickle
             config_pickle_path = [os.getcwd(), 'public_pickles', 'configuration.p']
             config_pickle_path = os.path.join('', *config_pickle_path)
-            c_obj = pickle.load(open(config_pickle_path, 'rb'))
+            config_obj = pickle.load(open(config_pickle_path, 'rb'))
         except FileNotFoundError:
             print("Unable to load a configuration")
             raise
 
-        return c_obj
+        return config_obj
 
     @property
     def frame_data(self):

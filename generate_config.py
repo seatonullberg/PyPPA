@@ -490,8 +490,6 @@ class Configuration(object):
         env_dict = {}
         # since environment variables are unique only to a plugin folder (not individual betas)
         # use headers as keys rather than filenames without extensions such as in plugins
-        # i realize this is not ideal...
-        # TODO: fix to not use headers
         for key, val in self.config_dict['environment_variables'].items():
             env_dict[key] = {}
             for v in val:
@@ -572,8 +570,3 @@ class Configuration(object):
         # force delete to ensure no floating plugin objects taking up memory
         del obj_plugin
         return chd, m
-
-
-if __name__ == "__main__":
-    cg = ConfigurationGenerator()
-    cg.make()
