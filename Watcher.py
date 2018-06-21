@@ -1,20 +1,19 @@
 import face_recognition
 import cv2
-import datetime
 import os
 import pickle
 from threading import Thread
 from facial_profile import FacialProfile
 import numpy as np
 import pyautogui
+from queue import Queue
 
 
-# TODO: Fix this mess
+# TODO: Figure out how to better incorporate video playback
 class BackgroundWatcher(object):
 
     def __init__(self):
         self.frame_data = {}
-        self.greeting_times = {}
 
     def startup(self):
         # Get a reference to webcam #0 (the default one)
@@ -34,8 +33,6 @@ class BackgroundWatcher(object):
             if process_this_frame:
                 # collect general data for use in additional functions
                 self.analyze_frame(frame=frame, rgb_small_frame=rgb_small_frame)
-                # then distribute tasks among multiple threads
-                self.threader()
             process_this_frame = not process_this_frame
 
             # Display the results
@@ -73,9 +70,23 @@ class BackgroundWatcher(object):
         self.frame_data['face_locations'] = face_recognition.face_locations(rgb_small_frame)
         self.frame_data['face_encodings'] = face_recognition.face_encodings(rgb_small_frame,
                                                                             self.frame_data['face_locations'])
+        queue = Queue()
+        t1 = Thread(target=self.get_face_names, args=(queue, self.frame_data)).start()
+        t2 = Thread(target=self.get_cursor_centers, args=(queue, self.frame_data)).start()
+        t1.join()
+        t2.join()
+        while not queue.empty():
+            data = queue.get()
+            self.frame_data[data[0]] = data[1]
+        # pickle the dict so that external plugins can work with visual data
+        # SUPER IMPORTANT FILE FOR OTHER PLUGINS THAT USE VISUAL CUES
+        frame_data_path = ['public_pickles', 'frame_data.p']
+        pickle.dump(self.frame_data, open(os.path.join('', *frame_data_path), 'wb'))
+
+    def get_face_names(self, q, frame_dict):
         face_names = []
         profile_dict = FacialProfile().__dict__()
-        for face_encoding in self.frame_data['face_encodings']:
+        for face_encoding in frame_dict['face_encodings']:
             name = "Unknown"
             for key in profile_dict:
                 # Compare known embeddings to new embedding
@@ -84,13 +95,13 @@ class BackgroundWatcher(object):
                     name = profile_dict[key][0]
                     break
             face_names.append(name)
-        self.frame_data['face_names'] = face_names
+        # put a key and value in the queue for the analyzer to add to dict
+        q.put(('face_names', face_names))
 
-        # TODO: Figure out how to store the area just around an identified face
-        self.frame_data['images'] = [None for n in face_names]
-
+    # TODO: use eye control instead
+    def get_cursor_centers(self, q, frame_dict):
         # get 'cursor' locations from frame
-        hsv = cv2.cvtColor(self.frame_data['frame'], cv2.COLOR_BGR2HSV)
+        hsv = cv2.cvtColor(frame_dict['frame'], cv2.COLOR_BGR2HSV)
         lower_green = np.array([50, 50, 70])
         upper_green = np.array([80, 255, 255])
         mask = cv2.inRange(hsv, lower_green, upper_green)
@@ -98,6 +109,7 @@ class BackgroundWatcher(object):
         mask = cv2.dilate(mask, None, iterations=2)
         cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
                                 cv2.CHAIN_APPROX_SIMPLE)[-2]
+        # this if will cause errors but I'm leaving it since the whole thing will change soon
         if len(cnts) == 2:
             # 2 points are needed for easy 'click' functionality
             centers = []
@@ -112,8 +124,8 @@ class BackgroundWatcher(object):
             # get display dimensions
             screen_width, screen_height = pyautogui.size()
             # scale movement from OpenCV display to full display
-            scaled_x = (screen_width/hsv.shape[0])*mid_x
-            scaled_y = (screen_height/hsv.shape[1])*mid_y
+            scaled_x = (screen_width / hsv.shape[0]) * mid_x
+            scaled_y = (screen_height / hsv.shape[1]) * mid_y
             # invert lateral movement so the cursor moves naturally
             scaled_x = screen_width - scaled_x
             pyautogui.moveTo(x=scaled_x, y=scaled_y)
@@ -122,9 +134,4 @@ class BackgroundWatcher(object):
             if euclidean(u=centers[0], v=centers[1]) < 30:
                 pyautogui.click(x=mid_x, y=mid_y)
 
-            self.frame_data['cursor_centers'] = centers
-
-        # pickle the dict so that external plugins can work with visual data
-        # SUPER IMPORTANT FILE FOR OTHER PLUGINS THAT USE VISUAL CUES
-        frame_data_path = ['public_pickles', 'frame_data.p']
-        pickle.dump(self.frame_data, open(os.path.join('', *frame_data_path), 'wb'))
+            q.put(('cursor_centers', centers))
