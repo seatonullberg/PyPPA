@@ -6,17 +6,13 @@ import pickle
 from threading import Thread
 from facial_profile import FacialProfile
 import numpy as np
-# interface with the plugin to execute actionable commands
-# send a string command directly to be executed upon realization of visual cue
-from Plugins.WatcherPlugin.watcher_plugin import PyPPA_WatcherPlugin
 import pyautogui
 
 
+# TODO: Fix this mess
 class BackgroundWatcher(object):
 
     def __init__(self):
-        # initialize empty plugin to use its commands
-        self.plugin = PyPPA_WatcherPlugin('')
         self.frame_data = {}
         self.greeting_times = {}
 
@@ -130,29 +126,5 @@ class BackgroundWatcher(object):
 
         # pickle the dict so that external plugins can work with visual data
         # SUPER IMPORTANT FILE FOR OTHER PLUGINS THAT USE VISUAL CUES
-        frame_data_path = [DATA_DIR, 'public_pickles', 'frame_data.p']
+        frame_data_path = ['public_pickles', 'frame_data.p']
         pickle.dump(self.frame_data, open(os.path.join('', *frame_data_path), 'wb'))
-
-    def threader(self):
-        funcs = dir(BackgroundWatcher)
-        funcs = [f for f in funcs if f.startswith('task_')]
-        for f in funcs:
-            Thread(target=getattr(BackgroundWatcher, f), args=(self,)).start()
-
-    # TODO: add more greeting options
-    # move greetings to another plugin
-    def task_determine_greeting(self):
-        for name in self.frame_data['face_names']:
-            try:
-                self.greeting_times[name]
-            except KeyError:
-                # if the face has not been greeted yet, add an entry with current time and greet
-                self.greeting_times[name] = datetime.datetime.now()
-                self.plugin.function_handler(args=['greet', {'greeting': 'Hello {}'.format(name)}])
-            else:
-                delta = datetime.datetime.now() - self.greeting_times[name]
-                m = divmod(delta.total_seconds(), 60)
-                # greet again if an hour has passed
-                if m[0] > 60:
-                    self.greeting_times[name] = datetime.datetime.now()
-                    self.plugin.function_handler(args=['greet', {'greeting': 'Hello {}!'.format(name)}])
