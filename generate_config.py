@@ -476,11 +476,11 @@ class Configuration(object):
         # start is the port number at which mapping begins
         # map all plugins and betas to a port for client server connections
         pmap = {}
-        for key, val in self.plugins.items():
+        for key in self.plugins:
             pmap[key] = start
             start += 1
-            for v in val:
-                pmap[v] = start
+            for b in self.plugins[key]['betas']:
+                pmap[b] = start
                 start += 1
         return pmap
 
@@ -509,10 +509,10 @@ class Configuration(object):
             modifiers = None
             for fname in self.config_dict['plugins'][header]:
                 name = fname.replace('.py', '')
-                # extract command hook dict and modifiers to add to the config
-                command_hook_dict, modifiers = self._extract_chd_and_m(name=name)
                 if name.endswith('_plugin'):
                     plugin = name
+                    # extract command hook dict and modifiers to add to the config
+                    command_hook_dict, modifiers = self._extract_chd_and_m(name=name)
                 elif name.endswith('_beta'):
                     betas.append(name)
             plugins_dict[plugin] = {}

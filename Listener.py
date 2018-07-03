@@ -1,4 +1,4 @@
-# TODO: split large incoming text up into smaller bits and multithread for improved response time
+# TODO: I/O overhaul to clear up "Illegal combination" error when resetting threshold
 
 import speech_recognition as sr
 import pyaudio
@@ -6,17 +6,19 @@ import struct
 import wave
 import os
 import numpy as np
+import copy
+import pickle
 
 
 class Listener(object):
 
     def __init__(self):
-        self.CHUNK = 4000
+        self.CHUNK = 2048
         self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 2
         self.RATE = 44100
         self.WAVE_OUTPUT_FILENAME = "user_input.wav"
-        self.threshold = 0.2
+        self.threshold = 0.1
         self.pre_buffer = None
         self.post_buffer = 1
         self.max_dialogue = 10
@@ -59,12 +61,12 @@ class Listener(object):
             command = r.recognize_google(audio_data=audio)
         except sr.UnknownValueError:
             print('unknown value error')
-            command = None
+            command = ''
 
         os.remove(self.WAVE_OUTPUT_FILENAME)
         return command
 
-    def listen_and_convert(self):
+    def listen_and_convert(self, input_device_name='default'):
 
         if self.pre_buffer is None:
             self.pre_buffer = np.inf
@@ -74,11 +76,20 @@ class Listener(object):
         self.max_dialogue *= self.RATE / self.CHUNK
 
         p = pyaudio.PyAudio()
+        # make sure to use the specified input device always
+        input_index = 0
+        for index in range(p.get_device_count()):
+            if p.get_device_info_by_index(index).get('name') == input_device_name:
+                input_index = index
+                break
+        print(p.get_device_info_by_index(input_index))
         stream = p.open(format=self.FORMAT,
                         channels=self.CHANNELS,
                         rate=self.RATE,
                         input=True,
-                        frames_per_buffer=self.CHUNK)
+                        output=False,
+                        frames_per_buffer=self.CHUNK,
+                        input_device_index=input_index)
 
         pre_frames = []
         dialogue_frames = []
@@ -107,7 +118,6 @@ class Listener(object):
                 pre_frames.append(data)
                 # timeout if nothing is said in certain amount of time
                 if len(pre_frames) > self.pre_buffer:
-                    # print('pre buffer timeout')
                     stream.stop_stream()
                     stream.close()
                     p.terminate()
@@ -118,7 +128,6 @@ class Listener(object):
                 # check to see if the post_buffer is surpassed
                 if len(post_frames) > self.post_buffer:
                     # after enough silent frames, close the mic and process noise
-                    # print('post buffer timeout')
                     stream.stop_stream()
                     stream.close()
                     p.terminate()
@@ -127,7 +136,6 @@ class Listener(object):
                 elif len(post_frames) < self.post_buffer:
                     # otherwise continue waiting
                     post_frames.append(data)
-
         # Reset the constants so the object can be used again
         if self.pre_buffer is np.inf:
             self.pre_buffer = None
@@ -140,25 +148,35 @@ class Listener(object):
         try:
             command = command.lower()
         except AttributeError:
-            # most likely a None
-            pass
+            raise
 
         return command
 
-    def reset_threshold(self, chunks=20):
+    def reset_threshold(self, chunks=20, input_device_name='default'):
         '''
         Listen briefly and reset noise threshold to reasonable value
         - redefines self.threshold
         :param chunks: number of chunks to listen to
+        :param input_device_name: str name of audio input device to record with
         :return: dict() old and new threshold values
         '''
-        old_threshold = self.threshold
+        old_threshold = copy.deepcopy(self.threshold)
         p = pyaudio.PyAudio()
+        # make sure to use the specified input device always
+        input_index = 0
+        for index in range(p.get_device_count()):
+            if p.get_device_info_by_index(index).get('name') == input_device_name:
+                input_index = index
+                break
+        print(p.get_device_info_by_index(input_index))
         stream = p.open(format=self.FORMAT,
                         channels=self.CHANNELS,
                         rate=self.RATE,
                         input=True,
-                        frames_per_buffer=self.CHUNK)
+                        output=False,
+                        frames_per_buffer=self.CHUNK,
+                        input_device_index=input_index)
+
         print('Setting noise threshold...')
         c = 0
         values = []
@@ -167,11 +185,21 @@ class Listener(object):
             amplitude = self.get_rms(data)
             values.append(amplitude)
             c += 1
+
+        # kill stream
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+
+        # set new threshold to be 4 standard deviations above the ambient noise level
         _mean = np.mean(values)
         _stdev = np.std(values)
-        print(_mean)
-        print(_stdev)
-        new_threshold = _mean+(4*_stdev)
+        new_threshold = _mean + (4 * _stdev)
         self.threshold = new_threshold
+        print("old: {}\nnew: {}".format(old_threshold, new_threshold))
 
-        return {'old': old_threshold, 'new': new_threshold}
+        # pickle with the new threshold
+        pickle_path = [os.getcwd(), 'public_pickles', 'listener.p']
+        pickle.dump(self, open(os.path.join('', *pickle_path), 'wb'))
+
+        return old_threshold, new_threshold
