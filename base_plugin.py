@@ -323,7 +323,13 @@ class BasePlugin(object):
         return command
 
     def reset_threshold(self):
-        pass
+        params_dict = {'reset_threshold': True}
+        params_path = [os.getcwd(), 'tmp', 'listener_params.p']
+        params_path = os.path.join('', *params_path)
+        pickle.dump(params_dict, open(params_path, 'wb'))
+        # return once file is deleted and threshold is set
+        while os.path.isfile(params_path):
+            continue
 
     def vocalize(self, text):
         vocalize_path = [os.getcwd(), 'tmp', 'vocalize.txt']
