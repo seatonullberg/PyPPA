@@ -1,5 +1,3 @@
-# TODO: I/O overhaul to clear up "Illegal combination" error when resetting threshold
-
 import speech_recognition as sr
 import pyaudio
 import struct
@@ -8,6 +6,7 @@ import os
 import numpy as np
 import copy
 import pickle
+import time
 
 
 class Listener(object):
@@ -22,6 +21,34 @@ class Listener(object):
         self.pre_buffer = None
         self.post_buffer = 1
         self.max_dialogue = 10
+
+    def mainloop(self):
+        params_path = [os.getcwd(), 'tmp', 'listener_params.p']
+        params_path = os.path.join('', *params_path)
+        command_path = [os.getcwd(), 'tmp', 'command.txt']
+        command_path = os.path.join('', *command_path)
+        while True:
+            if os.path.isfile(params_path):
+                # the file exists before its contents are ready
+                time.sleep(0.1)
+                # begin listening for user input with the params provided
+                params_dict = pickle.load(open(params_path, 'rb'))
+                if params_dict['reset_threshold']:
+                    # reset the noise threshold
+                    self.reset_threshold()
+                else:
+                    self.pre_buffer = params_dict['pre_buffer']
+                    self.post_buffer = params_dict['post_buffer']
+                    self.max_dialogue = params_dict['max_dialogue']
+                    command = self.listen_and_convert()
+                    # write the command to file for plugin to retrieve
+                    with open(command_path, 'w') as f:
+                        f.write(command)
+                # remove the old params file
+                os.remove(params_path)
+            else:
+                # a plugin has not yet requested user input
+                continue
 
     def get_rms(self, block):
         SHORT_NORMALIZE = (1.0 / 32768.0)
@@ -82,7 +109,6 @@ class Listener(object):
             if p.get_device_info_by_index(index).get('name') == input_device_name:
                 input_index = index
                 break
-        print(p.get_device_info_by_index(input_index))
         stream = p.open(format=self.FORMAT,
                         channels=self.CHANNELS,
                         rate=self.RATE,
@@ -168,7 +194,6 @@ class Listener(object):
             if p.get_device_info_by_index(index).get('name') == input_device_name:
                 input_index = index
                 break
-        print(p.get_device_info_by_index(input_index))
         stream = p.open(format=self.FORMAT,
                         channels=self.CHANNELS,
                         rate=self.RATE,
@@ -197,9 +222,3 @@ class Listener(object):
         new_threshold = _mean + (4 * _stdev)
         self.threshold = new_threshold
         print("old: {}\nnew: {}".format(old_threshold, new_threshold))
-
-        # pickle with the new threshold
-        pickle_path = [os.getcwd(), 'public_pickles', 'listener.p']
-        pickle.dump(self, open(os.path.join('', *pickle_path), 'wb'))
-
-        return old_threshold, new_threshold

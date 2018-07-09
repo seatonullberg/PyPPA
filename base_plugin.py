@@ -54,7 +54,8 @@ class BasePlugin(object):
                     self.make_active()
             if self.isActive:
                 if cmd is None:
-                    cmd = self.listener.listen_and_convert()
+                    #cmd = self.listener.listen_and_convert()
+                    cmd = self.get_command()
                 self.command_parser(cmd)
                 self.function_handler()
             # reset if there was an initial cmd so as not to repeat the same command
@@ -207,9 +208,9 @@ class BasePlugin(object):
         else:
             main = name
 
-        main_class_name = self.get_class_name(main)
+        main_class_name = self._get_class_name(main)
         if beta is not None:
-            beta_class_name = self.get_class_name(beta)
+            beta_class_name = self._get_class_name(beta)
 
         if beta_class_name is None:
 
@@ -237,7 +238,7 @@ class BasePlugin(object):
         self.initialize_and_remain(name, cmd)
         os.kill(os.getpid(), 9)
 
-    def get_class_name(self, name):
+    def _get_class_name(self, name):
         # convert self.name format to ClassName format
         class_name = name.split('_')
         class_name = [cn.capitalize() for cn in class_name]
@@ -245,9 +246,9 @@ class BasePlugin(object):
         return class_name
 
     '''
-    -------------------------------------------------------------------------
-    Properties used to conveniently load the configuration and public pickles
-    -------------------------------------------------------------------------
+    ---------------------------------------------------------------------
+    Properties used to conveniently load the configuration and frame data
+    ---------------------------------------------------------------------
     '''
     @property
     def config_obj(self):
@@ -284,41 +285,47 @@ class BasePlugin(object):
         else:
             return frame_data
 
-    @property
-    def listener(self):
-        '''
-        Load the pickled listener object for use or modification
-        :return: object listener
-        '''
-        listener_path = [os.getcwd(), 'public_pickles', 'listener.p']
-        try:
-            listener = pickle.load(open(os.path.join('', *listener_path), 'rb'))
-        except FileNotFoundError:
-            print('The listener.p file has not been generated or is not located at: {}'.format(
-                os.path.join('', *listener_path)
-                )
-            )
-            raise
-        else:
-            return listener
-
     '''
     ---------------------------------
     Listening and speaking capability
     ---------------------------------
     '''
-    def get_command(self, name):
-        # name = the name of the plugin to return the command to
-        # wraps listener plugin
-        # pass and remain to listener plugin
-        # send '<plugin_name> listen' as cmd
-        # listener plugin will wait and return the detected command with pass and remain
-        # return the recorded command via pass and remain message
-        self.pass_and_remain(name='listener_plugin',
-                             cmd='{} listen'.format(name))
+    def get_command(self,
+                    pre_buffer=None,
+                    post_buffer=1,
+                    max_dialogue=10):
+        '''
+        Get user input via microphone
+        :param pre_buffer: number of seconds to wait without sound before timeout
+        :param post_buffer: number of seconds to wait after sound before tiemout
+        :param max_dialogue: maximum number of seconds of sound to record before timeout
+        :return: the user input as a string
+        '''
+        # create the params file for the listener to intercept
+        params_dict = {'pre_buffer': pre_buffer,
+                       'post_buffer': post_buffer,
+                       'max_dialogue': max_dialogue,
+                       'reset_threshold': False}
+        params_path = [os.getcwd(), 'tmp', 'listener_params.p']
+        params_path = os.path.join('', *params_path)
+        pickle.dump(params_dict, open(params_path, 'wb'))
+        # wait for the user input file to be generated
+        command_path = [os.getcwd(), 'tmp', 'command.txt']
+        command_path = os.path.join('', *command_path)
+        while not os.path.isfile(command_path):
+            continue
+        # once the file exists read its content
+        with open(command_path, 'r') as f:
+            command = f.read()
+        # delete the command file
+        os.remove(command_path)
+        # return the contents of the command file
+        return command
+
+    def reset_threshold(self):
+        pass
 
     def vocalize(self, text):
-        # generates file for Speaker Background Task to catch and vocalize
         pass
 
 

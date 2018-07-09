@@ -26,11 +26,9 @@ if __name__ == "__main__":
     cg = ConfigurationGenerator()
     cg.make()
 
-    # pickle the initial state of the floating listener
+    # initialize listener in child process
     o = Listener()
-    # o.reset_threshold()
-    o_path = [os.getcwd(), 'public_pickles', 'listener.p']
-    pickle.dump(o, open(os.path.join('public_pickles', 'listener.p'), 'wb'))
+    Process(target=o.mainloop, name='Listener').start()
 
     # initialize sleep plugin in child process
     o = SleepPlugin()
