@@ -326,8 +326,12 @@ class BasePlugin(object):
         pass
 
     def vocalize(self, text):
-        pass
-
+        vocalize_path = [os.getcwd(), 'tmp', 'vocalize.txt']
+        vocalize_path = os.path.join('', *vocalize_path)
+        with open(vocalize_path, 'w') as f:
+            f.write(text)
+        while os.path.isfile(vocalize_path):
+            continue
 
 
 '''

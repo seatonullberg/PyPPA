@@ -1,11 +1,8 @@
 #!/usr/bin/python
-import pickle
-import os
-import time
-import socket
 from multiprocessing import Process
 from ctypes import *
 from Listener import Listener
+from Speaker import Speaker
 from generate_config import ConfigurationGenerator
 from Plugins.SleepPlugin.sleep_plugin import SleepPlugin
 
@@ -29,6 +26,10 @@ if __name__ == "__main__":
     # initialize listener in child process
     o = Listener()
     Process(target=o.mainloop, name='Listener').start()
+
+    # initialize speaker in child process
+    o = Speaker()
+    Process(target=o.mainloop, name='Speaker').start()
 
     # initialize sleep plugin in child process
     o = SleepPlugin()

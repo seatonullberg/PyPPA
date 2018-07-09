@@ -1,6 +1,5 @@
 import multiprocessing
 from base_plugin import BasePlugin
-from Speaker import vocalize
 
 
 class SleepPlugin(BasePlugin):
@@ -22,8 +21,9 @@ class SleepPlugin(BasePlugin):
         '''
         # ask for and collect command
         print("Awake...")
-        vocalize("how can I help you?")
-        cmd = self.listener.listen_and_convert()
+        self.vocalize("how can I help you?")
+        #cmd = self.listener.listen_and_convert()
+        cmd = self.get_command()
         print(cmd)
 
         # iterate over all plugins to try and find one that supports a command hook found in cmd

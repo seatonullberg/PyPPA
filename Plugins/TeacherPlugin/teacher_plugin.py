@@ -1,7 +1,5 @@
 import wikipedia
 import requests
-# TODO: vocalize needs an I/O overhaul
-from Speaker import vocalize
 from bs4 import BeautifulSoup
 from base_plugin import BasePlugin
 
@@ -29,11 +27,11 @@ class TeacherPlugin(BasePlugin):
         try:
             summary = wikipedia.summary(query, auto_suggest=True)
             print(summary)
-            # vocalize('ok, this is what i know about '+query)
-            # vocalize(summary)
+            self.vocalize('ok, this is what i know about '+query)
+            self.vocalize(summary)
         except wikipedia.DisambiguationError:
             print('could you be more specific')
-            # vocalize('could you be more specific?')
+            self.vocalize('could you be more specific?')
 
     def scrape_wikihow(self, query):
         r = requests.get(r'https://www.wikihow.com/'+query)
@@ -50,10 +48,10 @@ class TeacherPlugin(BasePlugin):
             reading_text.append(p_text)
 
         if len(reading_text) < 1:
-            # vocalize('sorry, i do not know how to ' + query)
+            self.vocalize('sorry, i do not know how to ' + query)
             print('sorry, I do not know how to '+query)
         else:
             reading_text = ' '.join(reading_text)
             print(reading_text)
-            # vocalize('ok, this is how to ' + query)
-            # vocalize(reading_text)
+            self.vocalize('ok, this is how to ' + query)
+            self.vocalize(reading_text)
