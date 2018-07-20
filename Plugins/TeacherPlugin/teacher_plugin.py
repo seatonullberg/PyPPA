@@ -26,11 +26,10 @@ class TeacherPlugin(BasePlugin):
     def basic_teach(self, query):
         try:
             summary = wikipedia.summary(query, auto_suggest=True)
-            print(summary)
             self.vocalize('ok, this is what i know about '+query)
+            print(summary)
             self.vocalize(summary)
         except wikipedia.DisambiguationError:
-            print('could you be more specific')
             self.vocalize('could you be more specific?')
 
     def scrape_wikihow(self, query):
@@ -49,9 +48,8 @@ class TeacherPlugin(BasePlugin):
 
         if len(reading_text) < 1:
             self.vocalize('sorry, i do not know how to ' + query)
-            print('sorry, I do not know how to '+query)
         else:
             reading_text = ' '.join(reading_text)
-            print(reading_text)
             self.vocalize('ok, this is how to ' + query)
+            print(reading_text)
             self.vocalize(reading_text)

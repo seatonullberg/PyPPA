@@ -10,15 +10,14 @@ from multiprocessing import Process
 from Plugins.WebBrowserPlugin.google_search_beta import GoogleSearchBeta
 from Plugins.WebBrowserPlugin.netflix_search_beta import NetflixSearchBeta
 from private_config import NETFLIX_EMAIL, NETFLIX_PASSWORD, NETFLIX_USER, FIREFOX_PROFILE_PATH
-from Speaker import vocalize
-from Plugins.base_plugin import BasePlugin
+from base_plugin import BasePlugin
 from mannerisms import Mannerisms
 
 
 # TODO: Make the netflix function a beta and have it hold attention for full site navigation by voice
-class PyPPA_WebBrowserPlugin(BasePlugin):
+class WebBrowserPlugin(BasePlugin):
 
-    def __init__(self, command):
+    def __init__(self):
         # remember to place the single word spelling last to avoid 'best spelling' issue
         self.COMMAND_HOOK_DICT = {'open': ['open up', 'open it', 'open'],
                                   'search_google': ['search google for', 'search for', 'google'],
@@ -28,9 +27,9 @@ class PyPPA_WebBrowserPlugin(BasePlugin):
                           'search_google': {},
                           'search_youtube': {}
                           }
-        super().__init__(command=command,
-                         command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS)
+        super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
+                         modifiers=self.MODIFIERS,
+                         name='web_browser_plugin')
 
     def function_handler(self, args=None):
         '''
@@ -103,12 +102,12 @@ class PyPPA_WebBrowserPlugin(BasePlugin):
     def google_search(self, search_query):
         driver = webdriver.Firefox()
         driver.get('https://www.google.com/search?q='+search_query)
-        vocalize(Mannerisms('request_subsequent_command', None).final_response)
-        self.listener().pre_buffer = 10
-        sub_command = self.listener().listen_and_convert()
-        beta = GoogleSearchBeta(sub_command)
+        #vocalize(Mannerisms('request_subsequent_command', None).final_response)
+        #self.listener().pre_buffer = 10
+        #sub_command = self.listener().listen_and_convert()
+        #beta = GoogleSearchBeta(sub_command)
         # pass the driver for function handler to use
-        beta.function_handler(args={'driver': driver})
+        #beta.function_handler(args={'driver': driver})
         self.isBlocking = False
 
     def youtube_search(self, search_query):

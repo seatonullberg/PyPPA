@@ -1,16 +1,16 @@
-from Speaker import vocalize
-from Plugins.base_plugin import BasePlugin
+
+from base_plugin import BasePlugin
 
 
 class GoogleSearchBeta(BasePlugin):
 
-    def __init__(self, command):
+    def __init__(self):
         self.driver = None
         self.COMMAND_HOOK_DICT = {'open': ['open']}
         self.MODIFIERS = {'open': {'number': ['number']}}
-        super().__init__(command=command,
-                         command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS)
+        super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
+                         modifiers=self.MODIFIERS,
+                         name='google_search_beta')
 
     def function_handler(self, args=None):
         assert type(args) == dict
@@ -24,9 +24,6 @@ class GoogleSearchBeta(BasePlugin):
             # no modifier
             # use the premodifier as keyword search to open link containing keyword/phrase
             self.open_link(keyphrase=self.command_dict['premodifier'])
-
-        # keep active loop in google_beta function handler context
-        self.lock_context(pre_buffer=15, args=args)
 
     def open_link(self, str_number=None, keyphrase=None):
         link_list = []
@@ -47,15 +44,17 @@ class GoogleSearchBeta(BasePlugin):
                 link = link_list[num_dict[str_number]]
             except IndexError:
                 # not enough links in list
-                vocalize('Sorry, I could not find link number {}'.format(str_number))
+                # vocalize('Sorry, I could not find link number {}'.format(str_number))
+                pass
             except AttributeError:
-                vocalize('Sorry, I could not find link number {}'.format(str_number))
+                #vocalize('Sorry, I could not find link number {}'.format(str_number))
+                pass
             else:
                 self.driver.get(link)
         # get by keyword
         elif keyphrase is not None and str_number is None:
             if len(text_list) == 0:
-                vocalize('Sorry, I was unable to find any links containing the phrase {}'.format(keyphrase))
+                #vocalize('Sorry, I was unable to find any links containing the phrase {}'.format(keyphrase))
                 return
             for i, link_text in enumerate(text_list):
                 if keyphrase in link_text:
@@ -65,7 +64,7 @@ class GoogleSearchBeta(BasePlugin):
                 elif i >= len(text_list) - 1:
                     # if no link has matched and the last link was just checked
                     # vocalize the failure
-                    vocalize('Sorry, I was unable to find any links containing the phrase {}'.format(keyphrase))
+                    #vocalize('Sorry, I was unable to find any links containing the phrase {}'.format(keyphrase))
                     break
                 else:
                     continue

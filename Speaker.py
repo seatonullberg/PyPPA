@@ -39,7 +39,10 @@ class Speaker(object):
                 continue
 
     def vocalize(self, input_string):
-        tts = gTTS(text=input_string, lang='en-us', slow=False)
+        tts = gTTS(text=input_string,
+                   lang='en',
+                   slow=False,
+                   lang_check=False)
         tts.save('tempVocal.mp3')
         mp3 = AudioSegment.from_mp3('tempVocal.mp3')
         mp3.export('tempVocal.wav', format='wav')

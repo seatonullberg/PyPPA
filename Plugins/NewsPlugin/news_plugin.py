@@ -1,9 +1,7 @@
 import requests
 import time
 import json
-from Speaker import vocalize
 from base_plugin import BasePlugin
-from Plugins.NewsPlugin.open_article_beta import OpenArticleBeta
 
 
 # TODO: add 'about' feature to get topical news
@@ -20,41 +18,52 @@ class NewsPlugin(BasePlugin):
                          modifiers=self.MODIFIERS)
 
     def get_news(self):
-        NEWS_API_KEY = self.config_obj.environment_variables[self.name]['NEWS_API_KEY']
-        if self.command_dict['modifier'] != '':
+        API_KEY = self.config_obj.environment_variables['__NewsPlugin__']['API_KEY']
+        if self.command_dict['modifier'] == 'by':
             # a desired source is supplied
             source = self.command_dict['postmodifier']
+            source = source.replace(' ', '-')
         else:
             # make Reuters the default news source
             source = 'reuters'
-
-        response = requests.get(
-            r'https://newsapi.org/v1/articles?source='+source+'&sortBy=latest&apiKey='+str(NEWS_API_KEY))
+        # make the API call through newsapi.org with user's api key
+        response = requests.get(r'https://newsapi.org/v1/articles?source='+source+'&sortBy=latest&apiKey='+str(API_KEY))
         response = json.loads(response.text)
         try:
-            response = response['articles']
+            # get the first 5 articles
+            articles = response['articles'][:5]
         except KeyError:
-            response = requests.get(
-                r'https://newsapi.org/v1/articles?source='+source+'&sortBy=latest&apiKey='+str(NEWS_API_KEY))
-            response = json.loads(response.text)
-            try:
-                response = response['articles']
-            except KeyError:
-                vocalize('Sorry, I do not recognize that source')
-                return
+            self.vocalize('sorry, I do not recognize that source')
+            return
 
-        response = response[:5]
+        # read a short summary of the articles
+        article_urls = []
+        for i, article in enumerate(articles):
+            article_urls.append(article['url'])
+            self.vocalize('Article number {}'.format(i+1))
+            self.vocalize(article['description'])
+            time.sleep(0.5)
+
+        # TODO: Figure out how to implement betas
+
+
+
+        '''
         article_list = []
         for article in response:
             article_dict = {'headline': article['description'], 'url': article['url']}
             article_list.append(article_dict)
 
         for i, articles in enumerate(article_list):
-            vocalize('Article number '+str(i+1))
-            vocalize(articles['headline'])
+            #vocalize('Article number '+str(i+1))
+            #vocalize(articles['headline'])
+            print(i)
             time.sleep(0.5)
         # TODO: figure out how to support beta plugins efficiently
-        vocalize('Would you like me to open any of these?')
-        answer = self.listener().listen_and_convert()
-        beta = OpenArticleBeta(answer, article_list)
-        beta.function_handler()
+        #vocalize('Would you like me to open any of these?')
+        #answer = self.listener().listen_and_convert()
+        answer = self.get_command()
+        print(answer)
+        #beta = OpenArticleBeta(answer, article_list)
+        #beta.function_handler()
+        '''

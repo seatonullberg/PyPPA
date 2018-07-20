@@ -1,44 +1,35 @@
 import requests
 from bs4 import BeautifulSoup
 import json
-from Speaker import vocalize
-from private_config import DARK_SKY_KEY, GEONAMES_USERNAME
-from Plugins.base_plugin import BasePlugin
+from base_plugin import BasePlugin
 
 
-# TODO: Could use a total overhaul
-# number pronunciation, information relevance, speed
-class PyPPA_WeatherPlugin(BasePlugin):
+# TODO: add 'forecast' premodifier
+class WeatherPlugin(BasePlugin):
 
-    def __init__(self, command):
+    def __init__(self):
         self.COMMAND_HOOK_DICT = {'check_weather': ['check the weather',
                                                     'what is the weather',
                                                     "what's the weather",
                                                     'check weather']}
         self.MODIFIERS = {'check_weather': {'in': ['in', 'on']}}
-        self.weather_dict = {}
-        self.isBlocking = True
-        super().__init__(command=command,
-                         command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS)
+        self.name = 'weather_plugin'
+        super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
+                         modifiers=self.MODIFIERS,
+                         name=self.name)
 
-    def function_handler(self, args=None):
+    def check_weather(self):
         if self.command_dict['modifier'] == 'in':
-            # fetch foreign weather
+            # get weather for specific location
             self.get_foreign_weather()
-            self.vocalize__weather()
-            return
         else:
-            # otherwise fetch local weather
+            # get local weather
             self.get_local_weather()
-            self.vocalize__weather()
-            return
+        self.pass_and_terminate(name='sleep_plugin',
+                                cmd='sleep')
 
     def get_local_weather(self):
-        '''
-        :return: Dark Sky API forecast call
-         --must be parsed for the specific information ie. ['currently']
-        '''
+        API_KEY = self.config_obj.environment_variables['__WeatherPlugin__']['API_KEY']
         r = requests.get(r'https://geoiptool.com/')
         readable = r.text
         soup = BeautifulSoup(readable, 'html.parser')
@@ -49,42 +40,45 @@ class PyPPA_WeatherPlugin(BasePlugin):
         longitude = items_list[9].replace('Longitude:', '')
         latitude = latitude.strip()
         longitude = longitude.strip()
-        request_url = 'https://api.darksky.net/forecast/'+DARK_SKY_KEY+'/'+str(latitude)+','+str(longitude)
+        request_url = 'https://api.darksky.net/forecast/'+API_KEY+'/'+str(latitude)+','+str(longitude)
         headers = {'Accept-Encoding': 'gzip, deflate'}
         response = requests.get(request_url, headers=headers)
         response = json.loads(response.text)
         response = response['currently']
-        self.weather_dict = response
+        self.vocalize__weather(response)
 
     def get_foreign_weather(self):
+        API_KEY = self.config_obj.environment_variables['__WeatherPlugin__']['API_KEY']
+        USERNAME = self.config_obj.environment_variables['__WeatherPlugin__']['USERNAME']
         location = self.command_dict['postmodifier']
-        response = requests.get('http://api.geonames.org/searchJSON?q='+location+'&maxRows=10&username='+GEONAMES_USERNAME)
+        response = requests.get('http://api.geonames.org/searchJSON?q='+location+'&maxRows=10&username='+USERNAME)
         response = json.loads(response.text)
         response = response['geonames'][0]
         latitude = response['lat']
         longitude = response['lng']
-        request_url = 'https://api.darksky.net/forecast/' + DARK_SKY_KEY + '/' + str(latitude) + ',' + str(longitude)
+        request_url = 'https://api.darksky.net/forecast/'+API_KEY+'/'+str(latitude)+','+str(longitude)
         headers = {'Accept-Encoding': 'gzip, deflate'}
         response = requests.get(request_url, headers=headers)
         response = json.loads(response.text)
         response = response['currently']
-        self.weather_dict = response
+        self.vocalize__weather(response)
 
-    def vocalize__weather(self):
-        location = self.command_dict['postmodifier']
-        # can be improved with mannerisms
-        if location == '':
-            vocalize('Currently, the temperature is '+str(self.weather_dict['temperature'])+' degrees, humidity is at '+
-                     str(round(float(self.weather_dict['humidity'])*100, 1))+' percent, the chance of precipitation is '+
-                     str(round(float(self.weather_dict['precipProbability'])*100, 1))+' percent, wind speeds are at '+
-                     str(self.weather_dict['windSpeed'])+' miles per hour, and cloud coverage is around '+
-                     str(round(float(self.weather_dict['cloudCover'])*100, 1))+' percent.')
+    def vocalize__weather(self, weather_dict):
+        weather_dict['temperature'] = str(int(weather_dict['temperature']))
+        weather_dict['humidity'] = str(int(float(weather_dict['humidity'])*100))
+        weather_dict['precipProbability'] = str(int(float(weather_dict['precipProbability'])*100))
+        weather_dict['cloudCover'] = str(int(float(weather_dict['cloudCover'])*100))
+        weather_dict['windSpeed'] = str(weather_dict['windSpeed'])
+        if self.command_dict['postmodifier'] != '':
+            location = 'in {}'.format(self.command_dict['postmodifier'])
         else:
-            vocalize('Currently, in'+location+', the temperature is'+str(self.weather_dict['temperature'])+
-                     ' degrees, humidity is at '+
-                     str(round(float(self.weather_dict['humidity'])*100, 1))+' percent, the chance of precipitation is '+
-                     str(round(float(self.weather_dict['precipProbability'])*100, 1))+' percent, wind speeds are at '+
-                     str(self.weather_dict['windSpeed'])+' miles per hour, and cloud coverage is around '+
-                     str(round(float(self.weather_dict['cloudCover'])*100, 1))+' percent.')
-
-        self.isBlocking = False
+            location = ''
+        self.vocalize('''currently {location}, the temperature is {temperature} degrees, 
+                      humidity is at {humidity} percent, the chance of precipitation is {precip} percent, 
+                      wind is blowing at {wind} miles per hour, 
+                      and cloud coverage is {cloud} percent.'''.format(location=location,
+                                                                       temperature=weather_dict['temperature'],
+                                                                       humidity=weather_dict['humidity'],
+                                                                       precip=weather_dict['precipProbability'],
+                                                                       wind=weather_dict['windSpeed'],
+                                                                       cloud=weather_dict['cloudCover']))

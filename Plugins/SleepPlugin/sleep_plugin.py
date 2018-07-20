@@ -22,7 +22,6 @@ class SleepPlugin(BasePlugin):
         # ask for and collect command
         print("Awake...")
         self.vocalize("how can I help you?")
-        #cmd = self.listener.listen_and_convert()
         cmd = self.get_command()
         print(cmd)
 

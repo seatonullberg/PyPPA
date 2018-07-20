@@ -7,6 +7,7 @@ from threading import Thread
 import struct
 
 
+# TODO: integrate more intelligent mannerisms for plugins to use
 class BasePlugin(object):
 
     def __init__(self, command_hook_dict, modifiers, name):
@@ -323,6 +324,10 @@ class BasePlugin(object):
         return command
 
     def reset_threshold(self):
+        '''
+        Reset the volume cutoff to separate noise from speech
+        :return: None
+        '''
         params_dict = {'reset_threshold': True}
         params_path = [os.getcwd(), 'tmp', 'listener_params.p']
         params_path = os.path.join('', *params_path)
@@ -332,6 +337,11 @@ class BasePlugin(object):
             continue
 
     def vocalize(self, text):
+        '''
+        Synthesize and play speech from text
+        :param text: the content to synthesize
+        :return: None
+        '''
         vocalize_path = [os.getcwd(), 'tmp', 'vocalize.txt']
         vocalize_path = os.path.join('', *vocalize_path)
         with open(vocalize_path, 'w') as f:

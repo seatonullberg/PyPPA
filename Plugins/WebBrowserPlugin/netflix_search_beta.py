@@ -10,14 +10,13 @@ import pickle
 import os
 import pyautogui
 
-from Plugins.base_plugin import BasePlugin
-from Speaker import vocalize
+from base_plugin import BasePlugin
 from private_config import DATA_DIR
 
 
 class NetflixSearchBeta(BasePlugin):
 
-    def __init__(self, command):
+    def __init__(self):
         self.driver = None
         self.isPaused = False
         self.last_url = 'https://www.netflix.com/browse'
@@ -33,9 +32,9 @@ class NetflixSearchBeta(BasePlugin):
                           'go_back': {},
                           'release_context': {}
                           }
-        super().__init__(command=command,
-                         command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS)
+        super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
+                         modifiers=self.MODIFIERS,
+                         name='netlifx_search_beta')
 
     def function_handler(self, args=None):
         # get driver in args
@@ -75,7 +74,7 @@ class NetflixSearchBeta(BasePlugin):
         try:
             position = pos_as_int[position]
         except KeyError:
-            vocalize('Sorry, I have a lazy developer and can only play from the first five results.')
+            # vocalize('Sorry, I have a lazy developer and can only play from the first five results.')
             return
 
         # click and play
