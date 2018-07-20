@@ -51,7 +51,6 @@ class Configuration(object):
         plugins_dir = [os.getcwd(), 'Plugins']
         plugins_dir = os.path.join('', *plugins_dir)
         for name in os.listdir(plugins_dir):
-            print(name)
             if name == '__pycache__':
                 pass
             self.environment_variables[name] = OrderedDict()
@@ -139,11 +138,128 @@ class Configuration(object):
                         self.environment_variables[name][ev] = None
 
     def _compare_configuration(self):
+        # store all configuration headers
+        headers = ['__BLACKLIST__', '__ENVIRONMENT_VARIABLES__',
+                   '__PLUGINS__', '__BACKGROUND_TASKS__']
         # compare the existing information to the user generated file
-        pass
+        try:
+            with open(self.configuration_fn, 'r') as config_file:
+                lines = config_file.readlines()
+        except FileNotFoundError:
+            # generate a new config file
+            with open(self.configuration_fn, 'w') as config_file:
+                for h in headers:
+                    config_file.write("{}\n".format(h))
+            #TODO: make custom error for new configuration
+            raise ValueError("No configuration set.")
+        else:
+            # extract the configuration file information
+            # remove blacklisted packages from contention
+            blacklist = self._scan_config_blacklist()
+            for b in blacklist:
+                if b in self.environment_variables:
+                    self.environment_variables.pop(b)
+                if b in self.plugins:
+                    self.plugins.pop(b)
+                if b in self.background_tasks:
+                    self.background_tasks = self.background_tasks - b
+            user_config = OrderedDict()
+            user_config = self._scan_config_environment_variables(user_config)
+            user_config = self._scan_config_plugins(user_config)
+            user_config = self._scan_config_background_tasks(user_config)
+
+    def _scan_config_blacklist(self):
+        # open the user configuration
+        with open(self.configuration_fn, 'r') as config_file:
+            lines = config_file.readlines()
+        blacklist = []
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if line == '__BLACKLIST__':
+                lines = lines[i+1:]
+                i = 0
+                l_init = lines[i]
+                while not l_init.startswith('__'):
+                    blacklist.append(l_init.strip())
+                    i += 1
+                    l_init = lines[i]
+                break
+        return blacklist
+
+    def _scan_config_environment_variables(self, config):
+        config['environment_variables'] = OrderedDict()
+        # open the user configuration
+        with open(self.configuration_fn, 'r') as config_file:
+            lines = config_file.readlines()
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if line == '__ENVIRONMENT_VARIABLES__':
+                lines = lines[i+1:]
+                i = 0
+                l_init = lines[i]
+                # do loop to collect headers
+                headers = []
+                while not l_init.startswith('__'):
+                    l_init = l_init.strip()
+                    if '=' not in l_init:
+                        headers.append(l_init)
+                    i += 1
+                    l_init = lines[i]
+                # do loop to collect respective values
+                i = 0
+                l_init = lines[i]
+                for h_index, h in enumerate(headers):
+                    config['environment_variables'][h] = OrderedDict()
+                    next_header = (headers[h_index] if h_index < len(headers) else headers[h_index-1])
+                    while not l_init.startswith('__') and not next_header == l_init:
+                        l_init = l_init.strip()
+                        if '=' in l_init:
+                            k, v = l_init.split('=')
+                            config['environment_variables'][h][k] = v
+                        i += 1
+                        l_init = lines[i]
+                break
+        return config
+
+    def _scan_config_plugins(self, config):
+        config['plugins'] = OrderedDict()
+        # open the user configuration
+        with open(self.configuration_fn, 'r') as config_file:
+            lines = config_file.readlines()
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if line == '__PLUGINS__':
+                lines = lines[i+1:]
+                i = 0
+                l_init = lines[i]
+                # do loop to collect headers
+                headers = []
+                while not l_init.startswith('__'):
+                    l_init = l_init.strip()
+                    if '=' not in l_init:
+                        headers.append(l_init)
+                    i += 1
+                    l_init = lines[i]
+                    # TODO: this is cut and paste needs to be modified to work
+                    # do loop to collect respective values
+                    i = 0
+                    l_init = lines[i]
+                    for h_index, h in enumerate(headers):
+                        config['plugins'][h] = OrderedDict()
+                        next_header = (headers[h_index] if h_index < len(headers) else headers[h_index - 1])
+                        while not l_init.startswith('__') and not next_header == l_init:
+                            l_init = l_init.strip()
+                            if '=' in l_init:
+                                k, v = l_init.split('=')
+                                config['plugins'][h][k] = v
+                            i += 1
+                            l_init = lines[i]
+                    # END CUT PASTE
+
+    def _scan_config_background_tasks(self, config):
+        config['background_tasks'] = OrderedDict()
 
 
 if __name__ == "__main__":
     c = Configuration()
     c.make()
-    print(c.plugins)
