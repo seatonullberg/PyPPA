@@ -236,28 +236,50 @@ class Configuration(object):
                 headers = []
                 while not l_init.startswith('__'):
                     l_init = l_init.strip()
-                    if '=' not in l_init:
+                    if l_init.endswith('Plugin'):
                         headers.append(l_init)
                     i += 1
                     l_init = lines[i]
-                    # TODO: this is cut and paste needs to be modified to work
-                    # do loop to collect respective values
-                    i = 0
-                    l_init = lines[i]
-                    for h_index, h in enumerate(headers):
-                        config['plugins'][h] = OrderedDict()
-                        next_header = (headers[h_index] if h_index < len(headers) else headers[h_index - 1])
-                        while not l_init.startswith('__') and not next_header == l_init:
-                            l_init = l_init.strip()
-                            if '=' in l_init:
-                                k, v = l_init.split('=')
-                                config['plugins'][h][k] = v
-                            i += 1
-                            l_init = lines[i]
-                    # END CUT PASTE
+                # do loop to collect respective values
+                i = 0
+                l_init = lines[i]
+                for h_index, h in enumerate(headers):
+                    config['plugins'][h] = OrderedDict()
+                    next_header = (headers[h_index] if h_index < len(headers) else headers[h_index - 1])
+                    while not l_init.startswith('__') and not next_header == l_init:
+                        l_init = l_init.strip()
+                        if l_init.endswith('beta'):
+                            config['plugins'][h][l_init] = OrderedDict()
+                        i += 1
+                        l_init = lines[i]
+                break
+        return config
 
     def _scan_config_background_tasks(self, config):
-        config['background_tasks'] = OrderedDict()
+        config['background_tasks'] = []
+        # open the user configuration
+        with open(self.configuration_fn, 'r') as config_file:
+            lines = config_file.readlines()
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if line == '__BACKGROUND_TASKS__':
+                lines = lines[i + 1:]
+                i = 0
+                l_init = lines[i]
+                # do loop to collect task names
+                while not l_init.startswith('__'):
+                    l_init = l_init.strip()
+                    if l_init.endswith('Tasks'):
+                        config['background_tasks'].append(l_init)
+                    i += 1
+                    # TODO: not clean
+                    try:
+                        l_init = lines[i]
+                    except IndexError:
+                        break
+
+                break
+        return config
 
 
 if __name__ == "__main__":
