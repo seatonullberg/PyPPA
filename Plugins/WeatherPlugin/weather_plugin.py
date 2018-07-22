@@ -29,7 +29,7 @@ class WeatherPlugin(BasePlugin):
                                 cmd='sleep')
 
     def get_local_weather(self):
-        API_KEY = self.config_obj.environment_variables['__WeatherPlugin__']['API_KEY']
+        API_KEY = self.config_obj.environment_variables[self.name]['API_KEY']
         r = requests.get(r'https://geoiptool.com/')
         readable = r.text
         soup = BeautifulSoup(readable, 'html.parser')
@@ -48,8 +48,8 @@ class WeatherPlugin(BasePlugin):
         self.vocalize__weather(response)
 
     def get_foreign_weather(self):
-        API_KEY = self.config_obj.environment_variables['__WeatherPlugin__']['API_KEY']
-        USERNAME = self.config_obj.environment_variables['__WeatherPlugin__']['USERNAME']
+        API_KEY = self.config_obj.environment_variables[self.name]['API_KEY']
+        USERNAME = self.config_obj.environment_variables[self.name]['USERNAME']
         location = self.command_dict['postmodifier']
         response = requests.get('http://api.geonames.org/searchJSON?q='+location+'&maxRows=10&username='+USERNAME)
         response = json.loads(response.text)

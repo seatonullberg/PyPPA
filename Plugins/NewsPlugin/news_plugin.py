@@ -18,7 +18,7 @@ class NewsPlugin(BasePlugin):
                          modifiers=self.MODIFIERS)
 
     def get_news(self):
-        API_KEY = self.config_obj.environment_variables['__NewsPlugin__']['API_KEY']
+        API_KEY = self.config_obj.environment_variables[self.name]['API_KEY']
         if self.command_dict['modifier'] == 'by':
             # a desired source is supplied
             source = self.command_dict['postmodifier']
