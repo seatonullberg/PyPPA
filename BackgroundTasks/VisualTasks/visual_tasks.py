@@ -1,12 +1,11 @@
 from base_background_task import BaseBackgroundTask
 import datetime
-from Speaker import vocalize
 
 
 class VisualTasks(BaseBackgroundTask):
 
     def __init__(self):
-        self._name = 'visual_tasks'
+        self._name = 'VisualTasks'
         # always be looking for faces to greet
         self.delays = [(self.determine_greeting, 1)]
         self.greeting_times = {}
@@ -21,14 +20,14 @@ class VisualTasks(BaseBackgroundTask):
             except KeyError:
                 # if the face has not been greeted yet, add an entry with current time and greet
                 self.greeting_times[name] = datetime.datetime.now()
-                vocalize("Hello, {}".format(name))
+                self.vocalize("Hello, {}".format(name))
             else:
                 delta = datetime.datetime.now() - self.greeting_times[name]
                 m = divmod(delta.total_seconds(), 60)
                 # greet again if an hour has passed
                 if m[0] > 60:
                     self.greeting_times[name] = datetime.datetime.now()
-                    vocalize("Hello {}".format(name))
+                    self.vocalize("Hello {}".format(name))
 
     # I have no idea where to put this code right now
     '''

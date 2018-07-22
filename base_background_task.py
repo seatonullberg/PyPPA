@@ -98,4 +98,17 @@ class BaseBackgroundTask(Thread):
             # therefore the delay passed in should be in units of seconds
             time.sleep(1)
 
+    def vocalize(self, text):
+        '''
+        Synthesize and play speech from text
+        :param text: the content to synthesize
+        :return: None
+        '''
+        vocalize_path = [os.getcwd(), 'tmp', 'vocalize.txt']
+        vocalize_path = os.path.join('', *vocalize_path)
+        with open(vocalize_path, 'w') as f:
+            f.write(text)
+        while os.path.isfile(vocalize_path):
+            continue
+
 

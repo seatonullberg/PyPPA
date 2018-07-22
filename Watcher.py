@@ -71,8 +71,10 @@ class BackgroundWatcher(object):
         self.frame_data['face_encodings'] = face_recognition.face_encodings(rgb_small_frame,
                                                                             self.frame_data['face_locations'])
         queue = Queue()
-        t1 = Thread(target=self.get_face_names, args=(queue, self.frame_data)).start()
-        t2 = Thread(target=self.get_cursor_centers, args=(queue, self.frame_data)).start()
+        t1 = Thread(target=self.get_face_names, args=(queue, self.frame_data))
+        t2 = Thread(target=self.get_cursor_centers, args=(queue, self.frame_data))
+        t1.start()
+        t2.start()
         t1.join()
         t2.join()
         while not queue.empty():
