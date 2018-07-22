@@ -3,7 +3,7 @@ from multiprocessing import Process
 from ctypes import *
 from Listener import Listener
 from Speaker import Speaker
-from generate_config import ConfigurationGenerator
+from generate_config import Configuration
 from Plugins.SleepPlugin.sleep_plugin import SleepPlugin
 
 
@@ -20,8 +20,8 @@ if __name__ == "__main__":
     asound.snd_lib_error_set_handler(c_error_handler)
 
     # make config first
-    cg = ConfigurationGenerator()
-    cg.make()
+    o = Configuration()
+    o.make()
 
     # initialize listener in child process
     o = Listener()

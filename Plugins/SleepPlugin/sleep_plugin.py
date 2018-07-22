@@ -5,7 +5,7 @@ from base_plugin import BasePlugin
 class SleepPlugin(BasePlugin):
 
     def __init__(self):
-        self.name = 'sleep_plugin'
+        self.name = 'SleepPlugin'
         self.COMMAND_HOOK_DICT = {'wake_up': ['hey auto', 'wake up'],
                                   'sleep': ['go to sleep', 'sleep']}
         self.MODIFIERS = {'wake_up': {},

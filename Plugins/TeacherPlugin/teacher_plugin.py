@@ -7,7 +7,7 @@ from base_plugin import BasePlugin
 class TeacherPlugin(BasePlugin):
 
     def __init__(self):
-        self.name = 'teacher_plugin'
+        self.name = 'TeacherPlugin'
         self.COMMAND_HOOK_DICT = {'teach_me': ['teach me about', 'teach me']}
         self.MODIFIERS = {'teach_me': {'how_to': ['how too', 'hot to', 'hot too', 'how to']}}
         super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,

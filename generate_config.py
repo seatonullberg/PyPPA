@@ -45,10 +45,10 @@ class Configuration(object):
     def make(self):
         # read the user configuration to check for errors and get values
         self._read_user_configuration()
-        # build the port map based off of the plugins which are not blacklsited
-        self._build_port_map()
         # constructed nested plugins dict for storing betas and chd/mod
         self._build_plugins()
+        # build the port map based off of the plugins which are not blacklsited
+        self._build_port_map()
         # build a list of the background tasks based on those not in the blacklist
         self._build_background_tasks()
         # build and pickle the actual configuration object to be used in runtime
@@ -62,7 +62,7 @@ class Configuration(object):
             user_config = yaml.load(stream=open(self.configuration_fn, 'r'))
             for plugin in user_config['ENVIRONMENT_VARIABLES']:
                 try:
-                    if user_config['BLACKLIST'][plugin] == 'true':
+                    if user_config['BLACKLIST'][plugin]:
                         continue
                 except KeyError:
                     # this happens when the key is 'Base'

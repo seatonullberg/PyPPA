@@ -13,7 +13,7 @@ class WeatherPlugin(BasePlugin):
                                                     "what's the weather",
                                                     'check weather']}
         self.MODIFIERS = {'check_weather': {'in': ['in', 'on']}}
-        self.name = 'weather_plugin'
+        self.name = 'WeatherPlugin'
         super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
                          modifiers=self.MODIFIERS,
                          name=self.name)

@@ -8,7 +8,7 @@ from base_plugin import BasePlugin
 class NewsPlugin(BasePlugin):
 
     def __init__(self):
-        self.name = 'news_plugin'
+        self.name = 'NewsPlugin'
         self.COMMAND_HOOK_DICT = {'get_news': ['get me the news', 'give me the news',
                                                'get me news', 'get the news', 'get news']
                                   }

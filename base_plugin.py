@@ -2,6 +2,8 @@ import pickle
 import os
 import socket
 from queue import Queue
+import importlib
+import stringcase
 from multiprocessing import Process
 from threading import Thread
 import struct
@@ -195,39 +197,15 @@ class BasePlugin(object):
         :param cmd: command sent to the plugin
         :return: None
         '''
-        main = None
-        beta = None
-        main_class_name = None
-        beta_class_name = None
-        self.isActive = False
-        # when initializing a beta use name format: main_plugin.beta_plugin
-        name_split = name.split('.')
-        if len(name_split) > 2:
-            raise NotImplementedError("betas cannot have betas")
-        elif len(name_split) == 2:
-            main, beta = name_split
-        else:
-            main = name
-
-        main_class_name = self._get_class_name(main)
-        if beta is not None:
-            beta_class_name = self._get_class_name(beta)
-
-        if beta_class_name is None:
-
-            # import the plugin class
-            mod_str = "Plugins.{mcn}.{m}".format(mcn=main_class_name,
-                                                 m=main)
-            module = __import__(mod_str, fromlist=[main_class_name])
-            plugin_obj = getattr(module, main_class_name)()
-        else:
-            mod_str = "Plugins.{mcn}.{b}".format(mcn=main_class_name,
-                                                 b=beta)
-            module = __import__(mod_str, fromlist=[main_class_name])
-            plugin_obj = getattr(module, beta_class_name)()
-
-        # no message gets sent, the plugin just gets initialized directly with a command
-        Process(target=plugin_obj.initialize, args=(cmd,), name=plugin_obj.name).start()
+        # this does not work on betas
+        # Plugins.PluginName.plugin_name
+        import_str = 'Plugins.{_dir}.{f}'.format(_dir=name,
+                                                 f=stringcase.snakecase(name))
+        module = importlib.import_module(import_str)
+        plugin = getattr(module, name)
+        plugin = plugin()
+        Process(target=plugin.initialize, args=(cmd,),
+                name=plugin.name).start()
 
     def initialize_and_terminate(self, name, cmd):
         '''
@@ -238,13 +216,6 @@ class BasePlugin(object):
         '''
         self.initialize_and_remain(name, cmd)
         os.kill(os.getpid(), 9)
-
-    def _get_class_name(self, name):
-        # convert self.name format to ClassName format
-        class_name = name.split('_')
-        class_name = [cn.capitalize() for cn in class_name]
-        class_name = ''.join(class_name)
-        return class_name
 
     '''
     ---------------------------------------------------------------------
