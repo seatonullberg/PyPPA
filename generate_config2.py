@@ -138,24 +138,19 @@ class Configuration(object):
                         self.environment_variables[name][ev] = None
 
     def _compare_configuration(self):
-        # store all configuration headers
-        headers = ['__BLACKLIST__', '__ENVIRONMENT_VARIABLES__',
-                   '__PLUGINS__', '__BACKGROUND_TASKS__']
         # compare the existing information to the user generated file
         try:
             with open(self.configuration_fn, 'r') as config_file:
                 lines = config_file.readlines()
         except FileNotFoundError:
             # generate a new config file
-            with open(self.configuration_fn, 'w') as config_file:
-                for h in headers:
-                    config_file.write("{}\n".format(h))
+            self._build_config_template()
             #TODO: make custom error for new configuration
-            raise ValueError("No configuration set.")
+            raise ValueError("No configuration set. A template has been generated.")
         else:
             # extract the configuration file information
             # remove blacklisted packages from contention
-            blacklist = self._scan_config_blacklist()
+            blacklist = self._scan_config_blacklist(lines=lines)
             for b in blacklist:
                 if b in self.environment_variables:
                     self.environment_variables.pop(b)
@@ -164,14 +159,82 @@ class Configuration(object):
                 if b in self.background_tasks:
                     self.background_tasks = self.background_tasks - b
             user_config = OrderedDict()
-            user_config = self._scan_config_environment_variables(user_config)
-            user_config = self._scan_config_plugins(user_config)
-            user_config = self._scan_config_background_tasks(user_config)
+            user_config = self._scan_config_environment_variables(config=user_config,
+                                                                  lines=lines)
+            user_config = self._scan_config_plugins(config=user_config,
+                                                    lines=lines)
+            user_config = self._scan_config_background_tasks(config=user_config,
+                                                             lines=lines)
 
-    def _scan_config_blacklist(self):
-        # open the user configuration
-        with open(self.configuration_fn, 'r') as config_file:
-            lines = config_file.readlines()
+    def _build_config_template(self):
+        # generate an empty configuration file
+        template = OrderedDict()
+        # blacklist is always initialized empty
+        template['blacklist'] = '__BLACKLIST__\n'
+        template['environment_variables'] = OrderedDict()
+        # get base level environment variables first
+        template['environment_variables']['Base'] = []
+        template['plugins'] = OrderedDict()
+        with open(self.environment_fn, 'r') as f:
+            for key in f.readlines():
+                ev = key.strip()
+                template['environment_variables']['Base'].append(ev)
+        # iterate through plugin packages for ev and names and betas
+        plugins_dir = [os.getcwd(), 'Plugins']
+        plugins_dir = os.path.join('', *plugins_dir)
+        for name in os.listdir(plugins_dir):
+            if name == '__pycache__':
+                continue
+            template['environment_variables'][name] = []
+            # this list will store the associated beta files with the .py removed
+            template['plugins'][name] = []
+            for f in os.listdir(os.path.join(plugins_dir, name)):
+                if f == 'environment.txt':
+                    with open(os.path.join(plugins_dir, name, f)) as environment_file:
+                        ev_lines = environment_file.readlines()
+                    for line in ev_lines:
+                        key = line.strip()
+                        template['environment_variables'][name].append(key)
+                elif f.endswith('beta.py'):
+                    f = f.replace('.py', '')
+                    beta = f.strip()
+                    template['plugins'][name].append(beta)
+                else:
+                    continue
+        # scan all background tasks for names
+        template['background_tasks'] = []
+        background_dir = [os.getcwd(), 'BackgroundTasks']
+        background_dir = os.path.join('', *background_dir)
+        for name in os.listdir(background_dir):
+            if name == '__pycache__':
+                continue
+            name = name.strip()
+            template['background_tasks'].append(name)
+
+        # write the collected template to file
+        with open(self.configuration_fn, 'w') as config_file:
+            # write empty blacklist header
+            config_file.write(template['blacklist'])
+            # write environment variables header and keys
+            config_file.write('__ENVIRONMENT_VARIABLES__\n')
+            for key in template['environment_variables']:
+                config_file.write(key+'\n')
+                for ev in template['environment_variables'][key]:
+                    config_file.write(ev+'\n')
+                config_file.write('\n')
+            # write plugin headers and betas
+            config_file.write('__PLUGINS__\n')
+            for key in template['plugins']:
+                config_file.write(key+'\n')
+                for beta in template['plugins'][key]:
+                    config_file.write(beta+'\n')
+                config_file.write('\n')
+            # write backgroud task header and names
+            config_file.write('__BACKGROUND_TASKS__\n')
+            for task in template['background_tasks']:
+                config_file.write(task+'\n')
+
+    def _scan_config_blacklist(self, lines):
         blacklist = []
         for i, line in enumerate(lines):
             line = line.strip()
@@ -186,11 +249,8 @@ class Configuration(object):
                 break
         return blacklist
 
-    def _scan_config_environment_variables(self, config):
+    def _scan_config_environment_variables(self, config, lines):
         config['environment_variables'] = OrderedDict()
-        # open the user configuration
-        with open(self.configuration_fn, 'r') as config_file:
-            lines = config_file.readlines()
         for i, line in enumerate(lines):
             line = line.strip()
             if line == '__ENVIRONMENT_VARIABLES__':
@@ -221,11 +281,8 @@ class Configuration(object):
                 break
         return config
 
-    def _scan_config_plugins(self, config):
+    def _scan_config_plugins(self, config, lines):
         config['plugins'] = OrderedDict()
-        # open the user configuration
-        with open(self.configuration_fn, 'r') as config_file:
-            lines = config_file.readlines()
         for i, line in enumerate(lines):
             line = line.strip()
             if line == '__PLUGINS__':
@@ -255,11 +312,8 @@ class Configuration(object):
                 break
         return config
 
-    def _scan_config_background_tasks(self, config):
+    def _scan_config_background_tasks(self, config, lines):
         config['background_tasks'] = []
-        # open the user configuration
-        with open(self.configuration_fn, 'r') as config_file:
-            lines = config_file.readlines()
         for i, line in enumerate(lines):
             line = line.strip()
             if line == '__BACKGROUND_TASKS__':
