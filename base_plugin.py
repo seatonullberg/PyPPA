@@ -217,6 +217,25 @@ class BasePlugin(object):
         self.initialize_and_remain(name, cmd)
         os.kill(os.getpid(), 9)
 
+    def initialize_beta(self, name, cmd, data):
+        '''
+        Initialize a beta plugin and remain
+        :param name: name of the beta plugin
+        :param cmd: command sent to the beta
+        :param data: a python object to pass on to the beta plugin
+        :return: None
+        '''
+        # betas can only be initialized from their respective alphas
+        import_str = 'Plugins.{_dir}.{f}'.format(_dir=self.name,
+                                                 f=stringcase.snakecase(name))
+        module = importlib.import_module(import_str)
+        plugin = getattr(module, name)
+        plugin = plugin()
+        # base beta overrides the plugin base initialize to accept data
+        Process(target=plugin.initialize, args=[cmd, data],
+                name="{}.{}".format(self.name,
+                                    name)
+                ).start()
     '''
     ---------------------------------------------------------------------
     Properties used to conveniently load the configuration and frame data
