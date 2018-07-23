@@ -10,13 +10,13 @@ class GoogleSearchBeta(BaseBeta):
                           'exit_context': {}}
         super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
                          modifiers=self.MODIFIERS,
-                         name='google_search_beta')
+                         name='google_search_beta',
+                         alpha_name='WebBrowserPlugin')
 
     def search(self):
         driver = self.DATA
         driver.get('https://www.google.com/search?q={}'.format(self.command_dict['premodifier']))
 
-    # TODO: add this to base beta
-    def exit_context(self):
-        # pass and terminate to alpha
-        raise NotImplementedError()
+    def exit_context(self, cmd=None):
+        self.DATA.quit()
+        super().exit_context(cmd)

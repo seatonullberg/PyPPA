@@ -10,7 +10,8 @@ class NetflixSearchBeta(BaseBeta):
                           'play': {}}
         super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
                          modifiers=self.MODIFIERS,
-                         name='netflix_search_beta')
+                         name='netflix_search_beta',
+                         alpha_name='WebBrowserPlugin')
         self.status = None
 
     def search(self):
@@ -20,4 +21,8 @@ class NetflixSearchBeta(BaseBeta):
 
     def play(self):
         raise NotImplementedError()
+
+    def exit_context(self, cmd=None):
+        self.DATA.quit()
+        super().exit_context(cmd)
 

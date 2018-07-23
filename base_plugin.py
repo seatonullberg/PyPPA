@@ -55,6 +55,7 @@ class BasePlugin(object):
                 name, cmd = msg.split('$')
                 if self.name == name:
                     self.make_active()
+                    print(msg)
             if self.isActive:
                 if cmd is None:
                     #cmd = self.listener.listen_and_convert()
@@ -313,7 +314,6 @@ class BasePlugin(object):
         # delete the command file
         os.remove(command_path)
         #return the contents of the command file
-        print(self.name, command)
         return command
 
     def reset_threshold(self):
