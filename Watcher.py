@@ -34,7 +34,8 @@ class BackgroundWatcher(object):
                 # collect general data for use in additional functions
                 self.analyze_frame(frame=frame, rgb_small_frame=rgb_small_frame)
             process_this_frame = not process_this_frame
-
+            x = self.frame_data['eye_centers']
+            cv2.circle(x[0], x[1], x[2], x[3], x[4])
             # Display the results
             for (top, right, bottom, left), name in zip(self.frame_data['face_locations'],
                                                         self.frame_data['face_names']):
@@ -72,7 +73,7 @@ class BackgroundWatcher(object):
                                                                             self.frame_data['face_locations'])
         queue = Queue()
         t1 = Thread(target=self.get_face_names, args=(queue, self.frame_data))
-        t2 = Thread(target=self.get_cursor_centers, args=(queue, self.frame_data))
+        t2 = Thread(target=self.get_eye_centers, args=(queue, self.frame_data))
         t1.start()
         t2.start()
         t1.join()
@@ -99,6 +100,85 @@ class BackgroundWatcher(object):
             face_names.append(name)
         # put a key and value in the queue for the analyzer to add to dict
         q.put(('face_names', face_names))
+
+    def get_eye_centers(self, q, frame_dict):
+        # detect face
+        frame = cv2.cvtColor(frame_dict['frame'], cv2.COLOR_RGB2GRAY)
+        faces = cv2.CascadeClassifier('opencv_haarcascade_eye.xml')
+        detected = faces.detectMultiScale(frame, 1.3, 5)
+
+        pupilFrame = frame
+        pupilO = frame
+        windowClose = np.ones((5, 5), np.uint8)
+        windowOpen = np.ones((2, 2), np.uint8)
+        windowErode = np.ones((2, 2), np.uint8)
+
+        # draw square
+        for (x, y, w, h) in detected:
+            cv2.rectangle(frame, (x, y), ((x + w), (y + h)), (0, 0, 255), 1)
+            cv2.line(frame, (x, y), ((x + w, y + h)), (0, 0, 255), 1)
+            cv2.line(frame, (x + w, y), ((x, y + h)), (0, 0, 255), 1)
+            pupilFrame = cv2.equalizeHist(frame[int(y + (h * .25)):(y + h), x:(x + w)])
+            pupilO = pupilFrame
+            ret, pupilFrame = cv2.threshold(pupilFrame, 70, 255, cv2.THRESH_BINARY)
+            pupilFrame = cv2.morphologyEx(pupilFrame, cv2.MORPH_CLOSE, windowClose)
+            pupilFrame = cv2.morphologyEx(pupilFrame, cv2.MORPH_ERODE, windowErode)
+            pupilFrame = cv2.morphologyEx(pupilFrame, cv2.MORPH_OPEN, windowOpen)
+
+            # so above we do image processing to get the pupil..
+            # now we find the biggest blob and get the centriod
+
+            threshold = cv2.inRange(pupilFrame, 250, 255)  # get the blobs
+            _, contours, hierarchy = cv2.findContours(threshold, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+
+            # if there are 3 or more blobs, delete the biggest and delete the left most for the right eye
+            # if there are 2 blob, take the second largest
+            # if there are 1 or less blobs, do nothing
+
+            if len(contours) >= 2:
+                # find biggest blob
+                maxArea = 0
+                MAindex = 0  # to get the unwanted frame
+                distanceX = []  # delete the left most (for right eye)
+                currentIndex = 0
+                for cnt in contours:
+                    area = cv2.contourArea(cnt)
+                    center = cv2.moments(cnt)
+                    cx, cy = int(center['m10'] / center['m00']), int(center['m01'] / center['m00'])
+                    distanceX.append(cx)
+                    if area > maxArea:
+                        maxArea = area
+                        MAindex = currentIndex
+                    currentIndex = currentIndex + 1
+
+                del contours[MAindex]  # remove the picture frame contour
+                del distanceX[MAindex]
+
+            eye = 'right'
+
+            if len(contours) >= 2:  # delete the left most blob for right eye
+                if eye == 'right':
+                    edgeOfEye = distanceX.index(min(distanceX))
+                else:
+                    edgeOfEye = distanceX.index(max(distanceX))
+                del contours[edgeOfEye]
+                del distanceX[edgeOfEye]
+
+            if len(contours) >= 1:  # get largest blob
+                maxArea = 0
+                for cnt in contours:
+                    area = cv2.contourArea(cnt)
+                    if area > maxArea:
+                        maxArea = area
+                        largeBlob = cnt
+
+            if len(largeBlob) > 0:
+                center = cv2.moments(largeBlob)
+                cx, cy = int(center['m10'] / center['m00']), int(center['m01'] / center['m00'])
+                print(cx, cy)
+                arg_list = [pupilO, (cx, cy), 5, 255, -1]
+                q.put(('eye_centers', arg_list))
+
 
     # TODO: use eye control instead
     def get_cursor_centers(self, q, frame_dict):
