@@ -4,9 +4,9 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.action_chains import ActionChains
 
 
+# TODO switch back to firefox because of netflix issue
 class WebBrowserPlugin(BasePlugin):
 
     def __init__(self):
@@ -24,11 +24,12 @@ class WebBrowserPlugin(BasePlugin):
 
     def _generate_driver(self):
         CHROME_PROFILE_PATH = self.config_obj.environment_variables[self.name]['CHROME_PROFILE_PATH']
+        # use the actual chromedriver binary at /usr/local/bin/chromedriver
         CHROMEDRIVER_PATH = self.config_obj.environment_variables[self.name]['CHROMEDRIVER_PATH']
         options = webdriver.ChromeOptions()
         options.add_argument("--user-data-dir={}".format(CHROME_PROFILE_PATH))
         options.add_argument("--disable-infobars")
-        options.add_argument("--start-fullscreen")
+        options.add_experimental_option('excludeSwitches', ['disable-component-update'])
         driver = webdriver.Chrome(executable_path=CHROMEDRIVER_PATH,
                                   chrome_options=options)
         return driver
