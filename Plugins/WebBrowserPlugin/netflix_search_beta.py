@@ -2,6 +2,9 @@ from base_beta import BaseBeta
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 import pyautogui
+from threading import Thread
+from queue import Queue
+import pickle
 
 
 class NetflixSearchBeta(BaseBeta):
@@ -18,6 +21,8 @@ class NetflixSearchBeta(BaseBeta):
                          name='netflix_search_beta',
                          alpha_name='WebBrowserPlugin')
         self.status = None
+        self.monitor_queue = Queue()
+        self.monitor_thread = None
 
     def search(self):
         driver = self.DATA
@@ -47,6 +52,11 @@ class NetflixSearchBeta(BaseBeta):
             driver.maximize_window()
             # Press spacebar to start right away
             self.pause()
+        self.status = 'play'
+        # spawn a thread to monitor the viewers
+        if self.monitor_thread is None:
+            self.monitor_thread = Thread(target=self._monitor_viewers, args=(self.monitor_queue,))
+            self.monitor_thread.start()
 
     def pause(self):
         driver = self.DATA
@@ -60,6 +70,46 @@ class NetflixSearchBeta(BaseBeta):
         raise NotImplementedError()
 
     def exit_context(self, cmd=None):
+        self.monitor_queue.put('quit')
         self.DATA.quit()
         super().exit_context(cmd)
+
+    def _monitor_viewers(self, q):
+        initial_viewer = None
+        candidates = {}
+        exit_count = 0
+        quit_signal = False
+        while not quit_signal:
+            # load the frame data from pickle file
+            try:
+                face_names = self.frame_data['face_names']
+            except pickle.UnpicklingError:
+                face_names = []
+            except EOFError:
+                face_names = []
+
+            if not q.empty():
+                if q.get() == 'quit':
+                    quit_signal = True
+            if initial_viewer is None:
+                for name in face_names:
+                    if name in candidates:
+                        candidates[name] += 1
+                    else:
+                        candidates[name] = 0
+                for k, v in candidates.items():
+                    # if a candidate has 25 counts they become the initial user
+                    if v > 25:
+                        initial_viewer = k
+                        print(initial_viewer)
+                        break
+            else:
+                if initial_viewer not in face_names:
+                    exit_count += 1
+                # after a 25 frame exit reset the counters and pause netflix
+                if exit_count > 25:
+                    candidates = {}
+                    exit_count = 0
+                    initial_viewer = None
+                    self.pause()
 
