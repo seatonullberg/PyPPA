@@ -31,11 +31,14 @@ class WebBrowserPlugin(BasePlugin):
                          name=self.name)
 
     def _generate_driver(self):
+        CHROME_PROFILE_PATH = self.config_obj.environment_variables[self.name]['CHROME_PROFILE_PATH']
+        CHROMEDRIVER_PATH = self.config_obj.environment_variables[self.name]['CHROMEDRIVER_PATH']
         options = webdriver.ChromeOptions()
-        options.add_argument("--user-data-dir=/home/seaton/.config/google-chrome/Default")
+        options.add_argument("--user-data-dir={}".format(CHROME_PROFILE_PATH))
         options.add_argument("--disable-infobars")
         options.add_argument("--start-fullscreen")
-        driver = webdriver.Chrome(executable_path="/usr/lib/chromium-browser/chromedriver", chrome_options=options)
+        driver = webdriver.Chrome(executable_path=CHROMEDRIVER_PATH,
+                                  chrome_options=options)
         return driver
 
     def search_google(self):
@@ -85,28 +88,4 @@ class WebBrowserPlugin(BasePlugin):
             time.sleep(0.1)
         # after context is released from beta terminate its process
         nsb_thread.terminate()
-        self.isBlocking = False
-
-    def google_search(self, search_query):
-        driver = webdriver.Firefox()
-        driver.get('https://www.google.com/search?q='+search_query)
-        #vocalize(Mannerisms('request_subsequent_command', None).final_response)
-        #self.listener().pre_buffer = 10
-        #sub_command = self.listener().listen_and_convert()
-        #beta = GoogleSearchBeta(sub_command)
-        # pass the driver for function handler to use
-        #beta.function_handler(args={'driver': driver})
-        self.isBlocking = False
-
-    def youtube_search(self, search_query):
-        # prepare search query
-        search_query = search_query.replace(' ', '+')
-        # establish driver
-        profile = webdriver.FirefoxProfile(FIREFOX_PROFILE_PATH)
-        driver = webdriver.Firefox(profile)
-        driver.get('https://www.youtube.com/results?search_query=' + search_query)
-        # wait for load and click first video
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CLASS_NAME, 'style-scope.ytd-video-renderer')))
-        driver.find_element_by_xpath('//div/h3/a[@id="video-title"]').click()
         self.isBlocking = False
