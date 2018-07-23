@@ -45,6 +45,10 @@ class BaseBackgroundTask(Thread):
         frame_data_path = [os.getcwd(), 'public_pickles', 'frame_data.p']
         try:
             frame_data = pickle.load(open(os.path.join('', *frame_data_path), 'rb'))
+        except EOFError:
+            print('pickle EOF error')
+        except pickle.UnpicklingError:
+            print('pickle unpickling error')
         except FileNotFoundError:
             print('The frame_data.p file has not been generated or is not located at: {}'.format(
                 os.path.join('', *frame_data_path)

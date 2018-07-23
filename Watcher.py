@@ -34,8 +34,7 @@ class BackgroundWatcher(object):
                 # collect general data for use in additional functions
                 self.analyze_frame(frame=frame, rgb_small_frame=rgb_small_frame)
             process_this_frame = not process_this_frame
-            x = self.frame_data['eye_centers']
-            cv2.circle(x[0], x[1], x[2], x[3], x[4])
+
             # Display the results
             for (top, right, bottom, left), name in zip(self.frame_data['face_locations'],
                                                         self.frame_data['face_names']):
@@ -73,7 +72,7 @@ class BackgroundWatcher(object):
                                                                             self.frame_data['face_locations'])
         queue = Queue()
         t1 = Thread(target=self.get_face_names, args=(queue, self.frame_data))
-        t2 = Thread(target=self.get_eye_centers, args=(queue, self.frame_data))
+        t2 = Thread(target=self.get_cursor_centers, args=(queue, self.frame_data))
         t1.start()
         t2.start()
         t1.join()
@@ -175,7 +174,6 @@ class BackgroundWatcher(object):
             if len(largeBlob) > 0:
                 center = cv2.moments(largeBlob)
                 cx, cy = int(center['m10'] / center['m00']), int(center['m01'] / center['m00'])
-                print(cx, cy)
                 arg_list = [pupilO, (cx, cy), 5, 255, -1]
                 q.put(('eye_centers', arg_list))
 

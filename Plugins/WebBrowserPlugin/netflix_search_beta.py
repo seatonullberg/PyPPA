@@ -4,7 +4,7 @@ from base_beta import BaseBeta
 class NetflixSearchBeta(BaseBeta):
 
     def __init__(self):
-        self.COMMAND_HOOK_DICT = {'search': ['search for ', 'search'],
+        self.COMMAND_HOOK_DICT = {'search': ['search for', 'search'],
                                   'play': ['play']}
         self.MODIFIERS = {'search': {},
                           'play': {}}

@@ -197,6 +197,7 @@ class BasePlugin(object):
         :param cmd: command sent to the plugin
         :return: None
         '''
+        self.isActive = False
         # this does not work on betas
         # Plugins.PluginName.plugin_name
         import_str = 'Plugins.{_dir}.{f}'.format(_dir=name,
@@ -225,6 +226,7 @@ class BasePlugin(object):
         :param data: a python object to pass on to the beta plugin
         :return: None
         '''
+        self.isActive = False
         # betas can only be initialized from their respective alphas
         import_str = 'Plugins.{_dir}.{f}'.format(_dir=self.name,
                                                  f=stringcase.snakecase(name))
@@ -310,7 +312,8 @@ class BasePlugin(object):
             command = f.read()
         # delete the command file
         os.remove(command_path)
-        # return the contents of the command file
+        #return the contents of the command file
+        print(self.name, command)
         return command
 
     def reset_threshold(self):

@@ -43,4 +43,5 @@ if __name__ == "__main__":
 
     # initialize sleep plugin in child process
     o = SleepPlugin()
-    Process(target=o.initialize, name=o.name).start()
+    cmd = 'sleep'
+    Process(target=o.initialize, name=o.name, args=(cmd,)).start()

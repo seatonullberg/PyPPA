@@ -47,3 +47,4 @@ class SleepPlugin(BasePlugin):
 
     def sleep(self):
         print('Sleeping...')
+        self.reset_threshold()
