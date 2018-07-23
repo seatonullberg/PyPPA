@@ -1,78 +1,59 @@
+from base_plugin import BasePlugin
+from multiprocessing import Process
 import time
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
-import multiprocessing
-from multiprocessing import Process
-
-from Plugins.WebBrowserPlugin.google_search_beta import GoogleSearchBeta
-from Plugins.WebBrowserPlugin.netflix_search_beta import NetflixSearchBeta
-from private_config import NETFLIX_EMAIL, NETFLIX_PASSWORD, NETFLIX_USER, FIREFOX_PROFILE_PATH
-from base_plugin import BasePlugin
-from mannerisms import Mannerisms
 
 
-# TODO: Make the netflix function a beta and have it hold attention for full site navigation by voice
 class WebBrowserPlugin(BasePlugin):
 
     def __init__(self):
         # remember to place the single word spelling last to avoid 'best spelling' issue
-        self.COMMAND_HOOK_DICT = {'open': ['open up', 'open it', 'open'],
-                                  'search_google': ['search google for', 'search for', 'google'],
-                                  'search_youtube': ['search youtube for', 'search youtube', 'youtube']}
-        self.MODIFIERS = {'open': {'canvas': ['canvas', 'e learning'],
-                                   'netflix': ['netflix']},
-                          'search_google': {},
-                          'search_youtube': {}
-                          }
+        self.name = 'WebBrowserPlugin'
+        # structure for now
+        # search_google: do a google search for a given keyword or phrase
+        # -- build Beta for enhanced audio control
+        # search_netflix: open and login to netflix
+        # -- build beta for enhanced audio control
+        # search_youtube: do a youtube search to find videos related to a given keyword
+        # -- build beta for enhanced audio support
+        self.COMMAND_HOOK_DICT = {'search_google': ['search google for', 'search google', 'search for', 'google'],
+                                  'search_netflix': ['search netflix for ', 'search netflix', 'open netflix'],
+                                  'search_youtube': ['search youtube for', 'search youtube', 'open youtube']}
+        self.MODIFIERS = {'search_google': {},
+                          'search_netflix': {},
+                          'search_youtube': {}}
         super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
                          modifiers=self.MODIFIERS,
-                         name='web_browser_plugin')
+                         name=self.name)
 
-    def function_handler(self, args=None):
-        '''
-        Function required to map user commands with their final function
-        :return: None
-        '''
-        if self.command_dict['command_hook'] == 'search_google':
-            # prepare for a google search
-            self.google_search(self.command_dict['premodifier'])
-        elif self.command_dict['command_hook'] == 'search_youtube':
-            # prepare youtube search
-            self.youtube_search(self.command_dict['premodifier'])
-        else:
-            # the open hook is being used
-            if self.command_dict['modifier'] == 'canvas':
-                self.open_canvas()
-            elif self.command_dict['modifier'] == 'netflix':
-                self.open_netflix()
-            else:
-                self.catch_all(self.command_dict['premodifier'])
-        # return to standard awake context in Listener
-        # no sense in including context loop to limit users to webbrowser commands here
+    def _generate_driver(self):
+        options = webdriver.ChromeOptions()
+        options.add_argument("--user-data-dir=/home/seaton/.config/google-chrome/Default")
+        options.add_argument("--disable-infobars")
+        options.add_argument("--start-fullscreen")
+        driver = webdriver.Chrome(executable_path="/usr/lib/chromium-browser/chromedriver", chrome_options=options)
+        return driver
 
-    '''
-    --------------------------------------------------------------------------------------------------------
-    Begin Module Functions
-    --------------------------------------------------------------------------------------------------------
-    '''
+    def search_google(self):
+        driver = self._generate_driver()
+        # send to the beta
+        print('initializing google_search_beta')
+        self.initialize_beta(name='google_search_beta',
+                             cmd='search {}'.format(self.command_dict['premodifier']),
+                             data=driver)
 
-    def catch_all(self, search_query):
-        command_no_spaces = search_query.replace(' ', '')
-        driver = webdriver.Firefox()
-        driver.get(r'http://www.'+command_no_spaces+'.com/')
-        self.isBlocking = False
+    def search_netflix(self):
+        driver = self._generate_driver()
 
-    def open_canvas(self):
-        driver = webdriver.Firefox()
-        driver.get(r'https://ufl.instructure.com/')
-        self.isBlocking = False
+    def search_youtube(self):
+        driver = self._generate_driver()
 
     def open_netflix(self):
-        profile = webdriver.FirefoxProfile(FIREFOX_PROFILE_PATH)
-        driver = webdriver.Firefox(profile)
+        driver = self._generate_driver()
         driver.get('https://www.netflix.com/')
         # move to corner for easy cursor manipulation later
         driver.set_window_position(x=0, y=0)

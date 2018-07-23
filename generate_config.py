@@ -168,6 +168,9 @@ class Configuration(object):
         for key in self.plugins:
             self._port_map[key] = PORT
             PORT += 1
+            for beta in self.plugins[key]['betas']:
+                self._port_map[beta] = PORT
+                PORT += 1
 
     def _get_chd_and_mod(self, plugin_name, beta_name=None):
         '''

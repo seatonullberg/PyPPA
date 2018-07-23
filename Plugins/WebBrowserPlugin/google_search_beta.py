@@ -1,70 +1,17 @@
+from base_beta import BaseBeta
 
-from base_plugin import BasePlugin
 
-
-class GoogleSearchBeta(BasePlugin):
+class GoogleSearchBeta(BaseBeta):
 
     def __init__(self):
-        self.driver = None
-        self.COMMAND_HOOK_DICT = {'open': ['open']}
-        self.MODIFIERS = {'open': {'number': ['number']}}
+        self.COMMAND_HOOK_DICT = {'search': ['search for ', 'search']}
+        self.MODIFIERS = {'search': {}}
         super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
                          modifiers=self.MODIFIERS,
                          name='google_search_beta')
+        # more convenient variable name
 
-    def function_handler(self, args=None):
-        assert type(args) == dict
-        self.driver = args['driver']
-
-        if self.command_dict['modifier'] == 'number':
-            # open the link from specified position
-            # use postmodifier to identify position
-            self.open_link(str_number=self.command_dict['postmodifier'])
-        else:
-            # no modifier
-            # use the premodifier as keyword search to open link containing keyword/phrase
-            self.open_link(keyphrase=self.command_dict['premodifier'])
-
-    def open_link(self, str_number=None, keyphrase=None):
-        link_list = []
-        text_list = []
-        links = self.driver.find_elements_by_xpath('//div/h3/a')
-        for link in links:
-            link_list.append(link.get_attribute('href'))
-            text_list.append(link.get_attribute('text'))
-        text_list = [text.lower() for text in text_list]
-
-        # get by number
-        if str_number is not None and keyphrase is None:
-            num_dict = {'one': 0, 'two': 1, 'three': 2, 'four': 3, 'five': 4,
-                        'six': 5, 'seven': 6, 'eight': 7, 'nine': 8, 'ten': 9,
-                        '1': 0, '2': 1, '3': 2, '4': 3, '5': 4, '6': 5,
-                        '7': 6, '8': 7, '9': 8, '10': 9}
-            try:
-                link = link_list[num_dict[str_number]]
-            except IndexError:
-                # not enough links in list
-                # vocalize('Sorry, I could not find link number {}'.format(str_number))
-                pass
-            except AttributeError:
-                #vocalize('Sorry, I could not find link number {}'.format(str_number))
-                pass
-            else:
-                self.driver.get(link)
-        # get by keyword
-        elif keyphrase is not None and str_number is None:
-            if len(text_list) == 0:
-                #vocalize('Sorry, I was unable to find any links containing the phrase {}'.format(keyphrase))
-                return
-            for i, link_text in enumerate(text_list):
-                if keyphrase in link_text:
-                    # the keyphrase matches the link test
-                    self.driver.get(link_list[i])
-                    break
-                elif i >= len(text_list) - 1:
-                    # if no link has matched and the last link was just checked
-                    # vocalize the failure
-                    #vocalize('Sorry, I was unable to find any links containing the phrase {}'.format(keyphrase))
-                    break
-                else:
-                    continue
+    def search(self):
+        driver = self.DATA
+        print('google_search_beta initialized')
+        driver.get('https://www.google.com/search?q={}'.format(self.command_dict['premodifier']))

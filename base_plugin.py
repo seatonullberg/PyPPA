@@ -229,7 +229,7 @@ class BasePlugin(object):
         import_str = 'Plugins.{_dir}.{f}'.format(_dir=self.name,
                                                  f=stringcase.snakecase(name))
         module = importlib.import_module(import_str)
-        plugin = getattr(module, name)
+        plugin = getattr(module, stringcase.pascalcase(name))
         plugin = plugin()
         # base beta overrides the plugin base initialize to accept data
         Process(target=plugin.initialize, args=[cmd, data],
