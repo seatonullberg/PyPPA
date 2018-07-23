@@ -1,14 +1,18 @@
 from base_beta import BaseBeta
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
+import pyautogui
 
 
 class NetflixSearchBeta(BaseBeta):
 
     def __init__(self):
         self.COMMAND_HOOK_DICT = {'search': ['search for', 'search'],
-                                  'play': ['play']}
+                                  'play': ['play'],
+                                  'pause': ['pause', 'resume', 'start', 'stop']}
         self.MODIFIERS = {'search': {},
-                          'play': {'position': ['position']}}
+                          'play': {'position': ['position']},
+                          'pause': {}}
         super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
                          modifiers=self.MODIFIERS,
                          name='netflix_search_beta',
@@ -41,8 +45,19 @@ class NetflixSearchBeta(BaseBeta):
             driver.get(play_link)
             # go full screen
             driver.maximize_window()
-            # TODO
-            # missing a call to click the central play button
+            # Press spacebar to start right away
+            self.pause()
+
+    def pause(self):
+        driver = self.DATA
+        # click on netflix page in blank location to ensure the signal works
+        pyautogui.click(x=300, y=300)
+        # now send spacebar signal to pause
+        ActionChains(driver).key_down(Keys.SPACE).key_up(Keys.SPACE).perform()
+
+    def annotate(self):
+        # use when interrogative is done
+        raise NotImplementedError()
 
     def exit_context(self, cmd=None):
         self.DATA.quit()

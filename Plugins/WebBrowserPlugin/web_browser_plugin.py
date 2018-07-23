@@ -6,7 +6,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
 
-# TODO switch back to firefox because of netflix issue
 class WebBrowserPlugin(BasePlugin):
 
     def __init__(self):
