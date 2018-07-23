@@ -12,8 +12,8 @@ class WebBrowserPlugin(BasePlugin):
         self.name = 'WebBrowserPlugin'
         # remember to place the single word spelling last to avoid 'best spelling' issue
         self.COMMAND_HOOK_DICT = {'search_google': ['search google for', 'search google', 'search for', 'google'],
-                                  'search_netflix': ['search netflix for', 'search netflix', 'open netflix'],
-                                  'search_youtube': ['search youtube for', 'search youtube', 'open youtube']}
+                                  'search_netflix': ['search netflix for', 'search netflix', 'open netflix', 'netflix'],
+                                  'search_youtube': ['search youtube for', 'search youtube', 'open youtube', 'youtube']}
         self.MODIFIERS = {'search_google': {},
                           'search_netflix': {},
                           'search_youtube': {}}

@@ -4,8 +4,10 @@ from base_beta import BaseBeta
 class YoutubeSearchBeta(BaseBeta):
 
     def __init__(self):
-        self.COMMAND_HOOK_DICT = {'search': ['search for', 'search']}
-        self.MODIFIERS = {'search': {}}
+        self.COMMAND_HOOK_DICT = {'search': ['search for', 'search'],
+                                  'play': ['play', 'open']}
+        self.MODIFIERS = {'search': {},
+                          'play': {}}
         super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
                          modifiers=self.MODIFIERS,
                          name='youtube_search_beta',
@@ -15,6 +17,13 @@ class YoutubeSearchBeta(BaseBeta):
         driver = self.DATA
         driver.get('https://www.youtube.com/results?search_query={}'.format(self.command_dict['premodifier']))
 
-    def exit_context(self, cmd=None):
-        self.DATA.quit()
-        super().exit_context(cmd)
+    def play(self):
+        driver = self.DATA
+        # iterate through available links
+        links = driver.find_elements_by_id('video-title')
+        for link in links:
+            href = link.get_attribute('href')
+            text = link.get_attribute('title')
+            if self.command_dict['premodifier'] in text.lower():
+                driver.get(href)
+                break

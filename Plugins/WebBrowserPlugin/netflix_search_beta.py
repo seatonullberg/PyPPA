@@ -78,8 +78,12 @@ class NetflixSearchBeta(BaseBeta):
         initial_viewer = None
         candidates = {}
         exit_count = 0
-        quit_signal = False
-        while not quit_signal:
+        while True:
+            # check for quit signal
+            if not q.empty():
+                if q.get() == 'quit':
+                    break
+
             # load the frame data from pickle file
             try:
                 face_names = self.frame_data['face_names']
@@ -88,9 +92,7 @@ class NetflixSearchBeta(BaseBeta):
             except EOFError:
                 face_names = []
 
-            if not q.empty():
-                if q.get() == 'quit':
-                    quit_signal = True
+            # set the initial viewer
             if initial_viewer is None:
                 for name in face_names:
                     if name in candidates:
@@ -103,9 +105,12 @@ class NetflixSearchBeta(BaseBeta):
                         initial_viewer = k
                         print(initial_viewer)
                         break
+            # monitor presence of initial viewer
             else:
                 if initial_viewer not in face_names:
                     exit_count += 1
+                else:
+                    exit_count = 0
                 # after a 25 frame exit reset the counters and pause netflix
                 if exit_count > 25:
                     candidates = {}
