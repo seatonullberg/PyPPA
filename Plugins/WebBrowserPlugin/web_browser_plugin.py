@@ -41,16 +41,23 @@ class WebBrowserPlugin(BasePlugin):
     def search_google(self):
         driver = self._generate_driver()
         # send to the beta
-        print('initializing google_search_beta')
         self.initialize_beta(name='google_search_beta',
                              cmd='search {}'.format(self.command_dict['premodifier']),
                              data=driver)
 
     def search_netflix(self):
         driver = self._generate_driver()
+        # send to beta
+        self.initialize_beta(name='netflix_search_beta',
+                             cmd='search {}'.format(self.command_dict['premodifier']),
+                             data=driver)
 
     def search_youtube(self):
         driver = self._generate_driver()
+        # send to beta
+        self.initialize_beta(name='youtube_search_beta',
+                             cmd='search {}'.format(self.command_dict['premodifier']),
+                             data=driver)
 
     def open_netflix(self):
         driver = self._generate_driver()
