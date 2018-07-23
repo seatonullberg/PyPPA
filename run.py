@@ -34,12 +34,12 @@ if __name__ == "__main__":
     Process(target=o.mainloop, name='Speaker').start()
 
     # initialize the watcher in a child process
-    # o = BackgroundWatcher()
-    # Process(target=o.startup, name='Watcher').start()
+    o = BackgroundWatcher()
+    Process(target=o.startup, name='Watcher').start()
 
     # initialize visual tasks in a child process
-    # o = VisualTasks()
-    # Process(target=o.run, name=o.name).start()
+    o = VisualTasks()
+    Process(target=o.run, name=o.name).start()
 
     # initialize sleep plugin in child process
     o = SleepPlugin()
