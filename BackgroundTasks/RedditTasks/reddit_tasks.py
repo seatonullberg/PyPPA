@@ -8,10 +8,10 @@ from base_background_task import BaseBackgroundTask
 class RedditTasks(BaseBackgroundTask):
 
     def __init__(self):
-        CLIENT_ID = self.config_obj.environment_variables['__RedditTasks__']['CLIENT_ID']
-        SECRET = self.config_obj.environment_variables['__RedditTasks__']['SECRET']
-        USER_AGENT = self.config_obj.environment_variables['__RedditTasks__']['USER_AGENT']
-        USERNAME = self.config_obj.environment_variables['__RedditTasks__']['USERNAME']
+        CLIENT_ID = self.config_obj.environment_variables['RedditTasks']['CLIENT_ID']
+        SECRET = self.config_obj.environment_variables['RedditTasks']['SECRET']
+        USER_AGENT = self.config_obj.environment_variables['RedditTasks']['USER_AGENT']
+        USERNAME = self.config_obj.environment_variables['RedditTasks']['USERNAME']
 
         self.BOT = praw.Reddit(client_id=CLIENT_ID,
                                client_secret=SECRET,
@@ -30,7 +30,7 @@ class RedditTasks(BaseBackgroundTask):
         - conversational not currently implemented
         :return: None (writes data to file)
         '''
-        DATA_DIR = self.config_obj.environment_variables['__BASE__']['DATA_DIR']
+        DATA_DIR = self.config_obj.environment_variables['Base']['DATA_DIR']
         past_urls_path = [DATA_DIR, 'background_logs', 'Reddit', 'text_url_log.txt']
         past_urls = [url.replace('\n', '') for url in open(os.path.join('', *past_urls_path), 'r').readlines()]
         # iterate over the 100 top posts

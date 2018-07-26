@@ -21,7 +21,7 @@ class WikipediaTasks(BaseBackgroundTask):
         Collect Wikipedia articles at random and store the sentences in sections as raw text data
         :return: None (write data to file)
         '''
-        DATA_DIR = self.config_obj.environment_variables['__BASE__']['DATA_DIR']
+        DATA_DIR = self.config_obj.environment_variables['Base']['DATA_DIR']
         title_log_path = [DATA_DIR, 'background_logs', 'Wikipedia', 'title_log.txt']
         wiki_sections_path = [DATA_DIR, 'text', 'Wikipedia', 'wiki_sections.txt']
         while True:

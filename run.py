@@ -37,7 +37,7 @@ if __name__ == "__main__":
     o = BackgroundWatcher()
     Process(target=o.startup, name='Watcher').start()
 
-    # TODO: Run all BackgroundTasks specified in configuration
+    # TODO: This is wrong, why does background task subclass Thread and get separate process
     # initialize visual tasks in a child process
     o = VisualTasks()
     Process(target=o.run, name=o.name).start()

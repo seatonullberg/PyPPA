@@ -20,6 +20,7 @@ class FacialProfile(object):
     def __init__(self):
         pass
 
+    # TODO: this doesn't do what i thought it did
     def __dict__(self):
         # creates a smooth way of returning information about ALL FacialProfiles
         # str(_id) keys and tuple(name, embedding) values

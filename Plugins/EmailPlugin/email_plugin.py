@@ -1,9 +1,6 @@
-import smtplib
-import time
 import imaplib
 import email
 from base_plugin import BasePlugin
-import base64
 
 
 class EmailPlugin(BasePlugin):
@@ -27,10 +24,12 @@ class EmailPlugin(BasePlugin):
         server = imaplib.IMAP4_SSL(SMTP_SERVER, 993)
         server.login(EMAIL, PASSWORD)
         server.select('INBOX')
-        typ, data = server.search(None, 'ALL')
+        typ, data = server.search(None, '(UNSEEN)')
         for num in data[0].split():
             typ, data = server.fetch(num, '(RFC822)')
-            print('Message %s\n%s\n' % (num, data[0][1]))
+            d = data[0][1].decode('utf-8')
+            msg = email.message_from_string(d)
+            print(msg['from'])
+            print(msg['subject'])
         server.close()
         server.logout()
-
