@@ -84,6 +84,7 @@ class NetflixSearchBeta(BaseBeta):
                 if q.get() == 'quit':
                     break
 
+            # TODO: the pickle errors should be handled in Watcher
             # load the frame data from pickle file
             try:
                 face_names = self.frame_data['face_names']

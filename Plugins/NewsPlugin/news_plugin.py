@@ -5,6 +5,9 @@ from base_plugin import BasePlugin
 
 
 # TODO: add 'about' feature to get topical news
+# - add option to open the full article
+# - add optional full text read
+# - add toggle between articles
 class NewsPlugin(BasePlugin):
 
     def __init__(self):

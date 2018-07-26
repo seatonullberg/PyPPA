@@ -1,6 +1,9 @@
 from base_beta import BaseBeta
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 
 
+# TODO: add pause/resume and viewer monitoring
 class YoutubeSearchBeta(BaseBeta):
 
     def __init__(self):

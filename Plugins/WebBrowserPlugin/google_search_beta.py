@@ -1,6 +1,12 @@
 from base_beta import BaseBeta
 
 
+# ~ambitious TODO: build another beta that reads html
+# of the open links to attempt to create some generic control over all sites
+# - organize a dict of links and their names
+# - locate entry forms or search boxes
+# - find main text to vocalize if requested
+# -
 class GoogleSearchBeta(BaseBeta):
 
     def __init__(self):
