@@ -25,7 +25,7 @@ class WeatherPlugin(BasePlugin):
         else:
             # get local weather
             self.get_local_weather()
-        self.pass_and_terminate(name='sleep_plugin',
+        self.pass_and_terminate(name='SleepPlugin',
                                 cmd='sleep')
 
     def get_local_weather(self):

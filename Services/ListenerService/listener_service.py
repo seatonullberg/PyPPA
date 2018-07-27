@@ -6,49 +6,46 @@ import os
 import numpy as np
 import copy
 import pickle
-import time
+from base_service import BaseService
 
 
-class Listener(object):
+# TODO: better handle tmp files
+class ListenerService(BaseService):
 
     def __init__(self):
         self.CHUNK = 2048
         self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 2
         self.RATE = 44100
-        self.WAVE_OUTPUT_FILENAME = "user_input.wav"
+        self.TMP_WAV_FILENAME = "tmp_user_input.wav"
+        tmp_wav_path = [os.getcwd(), 'tmp', self.TMP_WAV_FILENAME]
+        self.TMP_WAV_FILENAME = os.path.join('', *tmp_wav_path)
         self.threshold = 0.1
         self.pre_buffer = None
         self.post_buffer = 1
         self.max_dialogue = 10
 
-    def mainloop(self):
-        params_path = [os.getcwd(), 'tmp', 'listener_params.p']
-        params_path = os.path.join('', *params_path)
-        command_path = [os.getcwd(), 'tmp', 'command.txt']
-        command_path = os.path.join('', *command_path)
-        while True:
-            if os.path.isfile(params_path):
-                # the file exists before its contents are ready
-                time.sleep(0.1)
-                # begin listening for user input with the params provided
-                params_dict = pickle.load(open(params_path, 'rb'))
-                if params_dict['reset_threshold']:
-                    # reset the noise threshold
-                    self.reset_threshold()
-                else:
-                    self.pre_buffer = params_dict['pre_buffer']
-                    self.post_buffer = params_dict['post_buffer']
-                    self.max_dialogue = params_dict['max_dialogue']
-                    command = self.listen_and_convert()
-                    # write the command to file for plugin to retrieve
-                    with open(command_path, 'w') as f:
-                        f.write(command)
-                # remove the old params file
-                os.remove(params_path)
-            else:
-                # a plugin has not yet requested user input
-                continue
+        self.name = 'ListenerService'
+        self.input_filename = 'listener_params.p'
+        self.output_filename = 'command.txt'
+        self.delay = 0.1
+        super().__init__(name=self.name,
+                         input_filename=self.input_filename,
+                         output_filename=self.output_filename,
+                         delay=self.delay)
+
+    def active(self):
+        params_dict = pickle.load(open(self.input_filename, 'rb'))
+        if params_dict['reset_threshold']:
+            # reset the noise threshold
+            self.reset_threshold()
+        else:
+            self.pre_buffer = params_dict['pre_buffer']
+            self.post_buffer = params_dict['post_buffer']
+            self.max_dialogue = params_dict['max_dialogue']
+            command = self.listen_and_convert()
+            # write the command to file for plugin to retrieve
+            self.output(command)
 
     def get_rms(self, block):
         SHORT_NORMALIZE = (1.0 / 32768.0)
@@ -68,7 +65,7 @@ class Listener(object):
 
     def write_wav(self, frames):
         p = pyaudio.PyAudio()
-        wf = wave.open(self.WAVE_OUTPUT_FILENAME, 'wb')
+        wf = wave.open(self.TMP_WAV_FILENAME, 'wb')
         wf.setnchannels(self.CHANNELS)
         wf.setsampwidth(p.get_sample_size(self.FORMAT))
         wf.setframerate(self.RATE)
@@ -79,10 +76,10 @@ class Listener(object):
         r = sr.Recognizer()
 
         try:
-            with sr.AudioFile(self.WAVE_OUTPUT_FILENAME) as source:
+            with sr.AudioFile(self.TMP_WAV_FILENAME) as source:
                 audio = r.record(source)
         except FileNotFoundError:
-            print('recognize was unable to find: {}'.format(self.WAVE_OUTPUT_FILENAME))
+            print('recognize was unable to find: {}'.format(self.TMP_WAV_FILENAME))
             raise
         try:
             command = r.recognize_google(audio_data=audio)
@@ -90,7 +87,7 @@ class Listener(object):
             print('unknown value error')
             command = ''
 
-        os.remove(self.WAVE_OUTPUT_FILENAME)
+        os.remove(self.TMP_WAV_FILENAME)
         return command
 
     def listen_and_convert(self, input_device_name='default'):

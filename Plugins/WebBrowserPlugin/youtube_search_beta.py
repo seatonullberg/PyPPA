@@ -30,3 +30,7 @@ class YoutubeSearchBeta(BaseBeta):
             if self.command_dict['premodifier'] in text.lower():
                 driver.get(href)
                 break
+
+    def exit_context(self, cmd=None):
+        self.DATA.quit()
+        super().exit_context(cmd)

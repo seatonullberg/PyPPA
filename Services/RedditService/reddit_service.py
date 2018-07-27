@@ -1,40 +1,48 @@
-# TODO: Make use of the log function
+from base_service import BaseService
 import praw
-import re
 import os
-from base_background_task import BaseBackgroundTask
+import re
 
 
-class RedditTasks(BaseBackgroundTask):
+class RedditService(BaseService):
 
     def __init__(self):
+        self.name = 'RedditService'
+        self.input_filename = 'reddit_service.in'
+        self.output_filename = 'reddit_service.out'
+        self.delay = 0
+        super().__init__(name=self.name,
+                         input_filename=self.input_filename,
+                         output_filename=self.output_filename,
+                         delay=self.delay)
+
+    def default(self):
+        # every hour run text archival
+        if self.clock.since_output > 3600:
+            self.archive_text()
+
+    def archive_text(self):
+        '''
+                Collect Reddit comments for raw text data and conversational text data
+                - conversational not currently implemented
+                :return: None (writes data to file)
+                '''
         CLIENT_ID = self.config_obj.environment_variables['RedditTasks']['CLIENT_ID']
         SECRET = self.config_obj.environment_variables['RedditTasks']['SECRET']
         USER_AGENT = self.config_obj.environment_variables['RedditTasks']['USER_AGENT']
         USERNAME = self.config_obj.environment_variables['RedditTasks']['USERNAME']
 
-        self.BOT = praw.Reddit(client_id=CLIENT_ID,
-                               client_secret=SECRET,
-                               user_agent=USER_AGENT)
-        self.USER = self.BOT.redditor(USERNAME)
+        BOT = praw.Reddit(client_id=CLIENT_ID,
+                          client_secret=SECRET,
+                          user_agent=USER_AGENT)
+        USER = BOT.redditor(USERNAME)
 
-        self._name = 'reddit_tasks'
-        # archive text hourly
-        self.delays = [(self.archive_text, 3600)]
-        super().__init__(name=self._name,
-                         delays=self.delays)
 
-    def archive_text(self):
-        '''
-        Collect Reddit comments for raw text data and conversational text data
-        - conversational not currently implemented
-        :return: None (writes data to file)
-        '''
         DATA_DIR = self.config_obj.environment_variables['Base']['DATA_DIR']
         past_urls_path = [DATA_DIR, 'background_logs', 'Reddit', 'text_url_log.txt']
         past_urls = [url.replace('\n', '') for url in open(os.path.join('', *past_urls_path), 'r').readlines()]
         # iterate over the 100 top posts
-        for post in self.BOT.subreddit('popular').hot(limit=100):
+        for post in BOT.subreddit('popular').hot(limit=100):
             # ignore previously archived posts
             if post.url in past_urls:
                 continue
@@ -55,43 +63,16 @@ class RedditTasks(BaseBackgroundTask):
             post.comments.replace_more(limit=None)
             null_comments = ['[Removed]', '[removed]', '[Deleted]', '[deleted]']
             # write unstructured clean text to file
-            comments_path = [DATA_DIR, 'text', 'Reddit', 'comments.txt']
-            with open(os.path.join('', *comments_path), 'a') as f:
-                for comment in post.comments.list():
-                    if comment.author == 'AutoModerator':
-                        continue
-                    elif comment.body in null_comments:
-                        continue
-                    comment_list = self.clean_comment(comment.body)  # returns list
-                    for c in comment_list:
-                        f.write(c + '\n')
-                # after all comments are written use a blank line to indicate separation of posts
-                f.write('\n')
+            for comment in post.comments.list():
+                if comment.author == 'AutoModerator':
+                    continue
+                elif comment.body in null_comments:
+                    continue
+                comment_list = self.clean_comment(comment.body)  # returns list
+                for c in comment_list:
+                    c += '\n'
+                    self.output(c)
         print('Reddit text archiving complete.')
-
-        # TODO...after testing the sentence vectors:
-        # conversationally structured text
-        # - hash the sentence then use as a table name and .p filename
-        # - common responses to this sentence are stored in the table
-        # - the sentence vector is stored in the .p file
-        '''
-            # iterate through comments, rebuilding the hierarchical structure only to second level
-            post.comments.replace_more(limit=None)
-            parent_children_pairing = [None, []]  # contains the head comment and a list of responses
-            for c in post.comments:
-                parent_children_pairing[0] = c.body
-                for reply in c.replies:
-                    parent_children_pairing[1].append(reply.body)
-            all_post_comments.append(parent_children_pairing)
-
-        # clean the comments
-        head_comments = [apc[0] for apc in all_post_comments]
-        head_comments = clean_comments(head_comments)
-        for apc, head in zip(all_post_comments, head_comments):
-            apc[0] = head
-        for apc in all_post_comments:
-            apc[1] = clean_comments(apc[1])
-        '''
 
     def clean_comment(self, comment):
         '''
@@ -122,5 +103,3 @@ class RedditTasks(BaseBackgroundTask):
             if comm != '':
                 clean_comment_list.append(comm)
         return clean_comment_list
-
-

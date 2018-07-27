@@ -12,7 +12,7 @@ class Configuration(object):
         self._port_map = OrderedDict()
         self._environment_variables = OrderedDict()
         self._plugins = OrderedDict()
-        self._background_tasks = []
+        self._services = OrderedDict()
 
     @property
     def configuration_fn(self):
@@ -39,8 +39,8 @@ class Configuration(object):
         return self._plugins
 
     @property
-    def background_tasks(self):
-        return self._background_tasks
+    def services(self):
+        return self._services
 
     def make(self):
         # read the user configuration to check for errors and get values
@@ -50,7 +50,7 @@ class Configuration(object):
         # build the port map based off of the plugins which are not blacklsited
         self._build_port_map()
         # build a list of the background tasks based on those not in the blacklist
-        self._build_background_tasks()
+        self._build_services()
         # build and pickle the actual configuration object to be used in runtime
         self._pickle_self()
 
@@ -65,8 +65,8 @@ class Configuration(object):
                     if user_config['BLACKLIST'][plugin]:
                         continue
                 except KeyError:
+                    # TODO avoid passing on the potentially dangerous exception
                     # this happens when the key is 'Base'
-                    print('Key Error {}'.format(plugin))
                     pass
                 self._environment_variables[plugin] = OrderedDict()
                 for k, v in user_config['ENVIRONMENT_VARIABLES'][plugin].items():
@@ -115,18 +115,18 @@ class Configuration(object):
                         key = line.strip()
                         config['ENVIRONMENT_VARIABLES'][name][key] = ''
 
-        # iterate through background tasks for environment variables
-        background_dir = [os.getcwd(), 'BackgroundTasks']
-        background_dir = os.path.join('', *background_dir)
-        for name in os.listdir(background_dir):
+        # iterate through services for environment variables
+        service_dir = [os.getcwd(), 'Services']
+        service_dir = os.path.join('', *service_dir)
+        for name in os.listdir(service_dir):
             if name == '__pycache__':
                 continue
             else:
                 config['BLACKLIST'][name] = False
             config['ENVIRONMENT_VARIABLES'][name] = {}
-            for f in os.listdir(os.path.join(background_dir, name)):
+            for f in os.listdir(os.path.join(service_dir, name)):
                 if f == self.environment_fn:
-                    with open(os.path.join(background_dir, name, f)) as environment_file:
+                    with open(os.path.join(service_dir, name, f)) as environment_file:
                         ev_lines = environment_file.readlines()
                     for line in ev_lines:
                         key = line.strip()
@@ -139,7 +139,7 @@ class Configuration(object):
         for key in self.environment_variables:
             if key == 'Base':
                 continue
-            elif key.endswith('Tasks'):
+            elif key.endswith('Service'):
                 continue
             self._plugins[key] = OrderedDict()
             self._plugins[key]['betas'] = OrderedDict()
@@ -156,21 +156,6 @@ class Configuration(object):
                     chd, mod = self._get_chd_and_mod(key)
                     self._plugins[key]['command_hook_dict'] = chd
                     self._plugins[key]['modifiers'] = mod
-
-    def _build_background_tasks(self):
-        for key in self.environment_variables:
-            if key.endswith('Tasks'):
-                self.background_tasks.append(key)
-
-    def _build_port_map(self):
-        # iterate through self.plugins to assign ports to plugins and betas
-        PORT = 5555
-        for key in self.plugins:
-            self._port_map[key] = PORT
-            PORT += 1
-            for beta in self.plugins[key]['betas']:
-                self._port_map[beta] = PORT
-                PORT += 1
 
     def _get_chd_and_mod(self, plugin_name, beta_name=None):
         '''
@@ -202,8 +187,46 @@ class Configuration(object):
             mod = getattr(beta, 'MODIFIERS')
         return chd, mod
 
+    def _build_port_map(self):
+        # iterate through self.plugins to assign ports to plugins and betas
+        PORT = 5555
+        for key in self.plugins:
+            self._port_map[key] = PORT
+            PORT += 1
+            for beta in self.plugins[key]['betas']:
+                self._port_map[beta] = PORT
+                PORT += 1
+
+    def _build_services(self):
+        # iterate through keys of self.environment_variables to make nested services dict
+        for key in self.environment_variables:
+            if key == 'Base':
+                continue
+            elif key.endswith('Plugin'):
+                continue
+            self._services[key] = OrderedDict()
+            package_path = [os.getcwd(), 'Services', key]
+            package_path = os.path.join('', *package_path)
+            for f in os.listdir(package_path):
+                if f.endswith('service.py'):
+                    f = f.split('.py')[0]
+                    in_name, out_name = self._get_io_filenames(f)
+                    self._services[key]['input_filename'] = in_name
+                    self._services[key]['output_filename'] = out_name
+
+    def _get_io_filenames(self, service_name):
+        dir_name = stringcase.pascalcase(service_name)
+        import_str = 'Services.{_dir}.{f}'.format(_dir=dir_name,
+                                                  f=service_name)
+        module = importlib.import_module(import_str)
+        service = getattr(module, dir_name)
+        service = service()
+        in_name = getattr(service, 'input_filename')
+        out_name = getattr(service, 'output_filename')
+        return in_name, out_name
+
     def _pickle_self(self):
-        pickle_path = [os.getcwd(), 'public_pickles', self.configuration_pickle_fn]
+        pickle_path = [os.getcwd(), 'tmp', self.configuration_pickle_fn]
         pickle_path = os.path.join('', *pickle_path)
         pickle.dump(self, open(pickle_path, 'wb'))
 
