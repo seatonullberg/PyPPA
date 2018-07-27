@@ -274,7 +274,6 @@ class BasePlugin(object):
                 os.path.join('', *frame_data_path)
                 )
             )
-            raise
         else:
             return frame_data
 
@@ -331,7 +330,7 @@ class BasePlugin(object):
         :param text: the content to synthesize
         :return: None
         '''
-        signal_path = self.config_obj['SpeakerService']['input_filename']
+        signal_path = self.config_obj.services['SpeakerService']['input_filename']
         with open(signal_path, 'w') as f:
             f.write(text)
         # wait until the content has been vocalized

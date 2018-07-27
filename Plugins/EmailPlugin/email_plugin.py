@@ -33,3 +33,6 @@ class EmailPlugin(BasePlugin):
             print(msg['subject'])
         server.close()
         server.logout()
+        # terminate after one use
+        self.pass_and_terminate(name='sleep_plugin',
+                                cmd='sleep')
