@@ -251,7 +251,7 @@ class BasePlugin(object):
         '''
         try:
             # load the configuration pickle
-            config_pickle_path = [os.getcwd(), 'public_pickles', 'configuration.p']
+            config_pickle_path = [os.getcwd(), 'tmp', 'configuration.p']
             config_pickle_path = os.path.join('', *config_pickle_path)
             config_obj = pickle.load(open(config_pickle_path, 'rb'))
         except FileNotFoundError:
@@ -266,7 +266,7 @@ class BasePlugin(object):
         Load the pickled dictionary of visual information produced by Watcher
         :return: dict(frame_data)
         '''
-        frame_data_path = [os.getcwd(), 'public_pickles', 'frame_data.p']
+        frame_data_path = [os.getcwd(), 'tmp', 'frame_data.p']
         try:
             frame_data = pickle.load(open(os.path.join('', *frame_data_path), 'rb'))
         except FileNotFoundError:
@@ -294,25 +294,23 @@ class BasePlugin(object):
         :param max_dialogue: maximum number of seconds of sound to record before timeout
         :return: the user input as a string
         '''
+        # call the listener service and collect response
+        signal_fname = self.config_obj.services['ListenerService']['input_filename']
+        response_fname = self.config_obj.services['ListenerService']['output_filename']
         # create the params file for the listener to intercept
         params_dict = {'pre_buffer': pre_buffer,
                        'post_buffer': post_buffer,
                        'max_dialogue': max_dialogue,
                        'reset_threshold': False}
-        params_path = [os.getcwd(), 'tmp', 'listener_params.p']
-        params_path = os.path.join('', *params_path)
-        pickle.dump(params_dict, open(params_path, 'wb'))
-        # wait for the user input file to be generated
-        command_path = [os.getcwd(), 'tmp', 'command.txt']
-        command_path = os.path.join('', *command_path)
-        while not os.path.isfile(command_path):
+        pickle.dump(params_dict, open(signal_fname, 'wb'))
+        # wait for the response
+        while not os.path.isfile(response_fname):
             continue
         # once the file exists read its content
-        with open(command_path, 'r') as f:
+        with open(response_fname, 'r') as f:
             command = f.read()
-        # delete the command file
-        os.remove(command_path)
-        #return the contents of the command file
+        # delete the response file
+        os.remove(response_fname)
         return command
 
     def reset_threshold(self):
@@ -320,12 +318,11 @@ class BasePlugin(object):
         Reset the volume cutoff to separate noise from speech
         :return: None
         '''
+        signal_fname = self.config_obj.services['ListenerService']['input_filename']
         params_dict = {'reset_threshold': True}
-        params_path = [os.getcwd(), 'tmp', 'listener_params.p']
-        params_path = os.path.join('', *params_path)
-        pickle.dump(params_dict, open(params_path, 'wb'))
-        # return once file is deleted and threshold is set
-        while os.path.isfile(params_path):
+        pickle.dump(params_dict, open(signal_fname, 'wb'))
+        # wait until the threshold has been reset in listener
+        while os.path.isfile(signal_fname):
             continue
 
     def vocalize(self, text):
@@ -334,11 +331,11 @@ class BasePlugin(object):
         :param text: the content to synthesize
         :return: None
         '''
-        vocalize_path = [os.getcwd(), 'tmp', 'vocalize.txt']
-        vocalize_path = os.path.join('', *vocalize_path)
-        with open(vocalize_path, 'w') as f:
+        signal_path = self.config_obj['SpeakerService']['input_filename']
+        with open(signal_path, 'w') as f:
             f.write(text)
-        while os.path.isfile(vocalize_path):
+        # wait until the content has been vocalized
+        while os.path.isfile(signal_path):
             continue
 
 
