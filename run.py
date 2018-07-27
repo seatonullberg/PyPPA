@@ -1,12 +1,23 @@
 #!/usr/bin/python
+import os
+import atexit
 from multiprocessing import Process
 from ctypes import *
-from Listener import Listener
-from Speaker import Speaker
-from Watcher import BackgroundWatcher
+from Services.ListenerService.Listener import Listener
+from Services.SpeakerService.Speaker import Speaker
+from Services.WatcherService.Watcher import BackgroundWatcher
 from generate_config import Configuration
 from Plugins.SleepPlugin.sleep_plugin import SleepPlugin
-from BackgroundTasks.VisualTasks.visual_tasks import VisualTasks
+
+
+@atexit.register
+def cleanup():
+    # delete all files in the tmp dir
+    tmp_path = [os.getcwd(), 'tmp']
+    tmp_path = os.path.join('', *tmp_path)
+    for fname in os.listdir(tmp_path):
+        fpath = os.path.join(tmp_path, fname)
+        os.remove(fpath)
 
 
 def alsa_error_handler(a,b,c,d,e):
@@ -36,11 +47,6 @@ if __name__ == "__main__":
     # initialize the watcher in a child process
     o = BackgroundWatcher()
     Process(target=o.startup, name='Watcher').start()
-
-    # TODO: This is wrong, why does background task subclass Thread and get separate process
-    # initialize visual tasks in a child process
-    o = VisualTasks()
-    Process(target=o.run, name=o.name).start()
 
     # initialize sleep plugin in child process
     o = SleepPlugin()

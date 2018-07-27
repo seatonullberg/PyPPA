@@ -1,4 +1,3 @@
-# TODO: Make use of the log function
 import praw
 import re
 import os

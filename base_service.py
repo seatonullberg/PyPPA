@@ -2,6 +2,7 @@ import datetime
 import os
 import pickle
 import time
+# TODO implement a log file
 
 
 class Clock(object):
@@ -50,13 +51,30 @@ class BaseService(object):
                  delay):
         self.name = name
         input_path = [os.getcwd(), 'tmp', input_filename]
-        input_filename = os.path.join('', input_path)
+        input_filename = os.path.join('', *input_path)
         self.input_filename = input_filename
         output_path = [os.getcwd(), 'tmp', output_filename]
-        output_filename = os.path.join('', output_path)
+        output_filename = os.path.join('', *output_path)
         self.output_filename = output_filename
         self.delay = delay
         self.clock = Clock()
+
+    @property
+    def config_obj(self):
+        '''
+        Load the configuration data into a convenient dict
+        :return: dict(config_dict)
+        '''
+        try:
+            # load the configuration pickle
+            config_pickle_path = [os.getcwd(), 'public_pickles', 'configuration.p']
+            config_pickle_path = os.path.join('', *config_pickle_path)
+            config_obj = pickle.load(open(config_pickle_path, 'rb'))
+        except FileNotFoundError:
+            print("Unable to load a configuration")
+            raise
+
+        return config_obj
 
     def mainloop(self):
         # keep the service running continuously

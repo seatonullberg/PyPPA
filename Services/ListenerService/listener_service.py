@@ -9,24 +9,25 @@ import pickle
 from base_service import BaseService
 
 
+# TODO: better handle tmp files
 class ListenerService(BaseService):
 
-    # TODO: figure out filenames
     def __init__(self):
         self.CHUNK = 2048
         self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 2
         self.RATE = 44100
-        # this has to change
-        self.WAVE_OUTPUT_FILENAME = "user_input.wav"
+        self.TMP_WAV_FILENAME = "tmp_user_input.wav"
+        tmp_wav_path = [os.getcwd(), '..', '..', 'tmp', self.TMP_WAV_FILENAME]
+        self.TMP_WAV_FILENAME = os.path.join('', *tmp_wav_path)
         self.threshold = 0.1
         self.pre_buffer = None
         self.post_buffer = 1
         self.max_dialogue = 10
 
         self.name = 'ListenerService'
-        self.input_filename = ''
-        self.output_filename = ''
+        self.input_filename = 'listener_params.p'
+        self.output_filename = 'command.txt'
         self.delay = 0.1
         super().__init__(name=self.name,
                          input_filename=self.input_filename,
@@ -64,7 +65,7 @@ class ListenerService(BaseService):
 
     def write_wav(self, frames):
         p = pyaudio.PyAudio()
-        wf = wave.open(self.WAVE_OUTPUT_FILENAME, 'wb')
+        wf = wave.open(self.TMP_WAV_FILENAME, 'wb')
         wf.setnchannels(self.CHANNELS)
         wf.setsampwidth(p.get_sample_size(self.FORMAT))
         wf.setframerate(self.RATE)
@@ -75,10 +76,10 @@ class ListenerService(BaseService):
         r = sr.Recognizer()
 
         try:
-            with sr.AudioFile(self.WAVE_OUTPUT_FILENAME) as source:
+            with sr.AudioFile(self.TMP_WAV_FILENAME) as source:
                 audio = r.record(source)
         except FileNotFoundError:
-            print('recognize was unable to find: {}'.format(self.WAVE_OUTPUT_FILENAME))
+            print('recognize was unable to find: {}'.format(self.TMP_WAV_FILENAME))
             raise
         try:
             command = r.recognize_google(audio_data=audio)
@@ -86,7 +87,7 @@ class ListenerService(BaseService):
             print('unknown value error')
             command = ''
 
-        os.remove(self.WAVE_OUTPUT_FILENAME)
+        os.remove(self.TMP_WAV_FILENAME)
         return command
 
     def listen_and_convert(self, input_device_name='default'):

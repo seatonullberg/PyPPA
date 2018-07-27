@@ -6,15 +6,15 @@ import wave
 import os
 
 
+# TODO: better handle the tmp files
 class SpeakerService(BaseService):
     # there is no default behavior and no output file
     # output is through the speakers
 
-    # TODO: figure out new naming scheme for the service files
     def __init__(self):
         self.name = 'SpeakerService'
-        self.input_filename = ''
-        self.output_filename = ''
+        self.input_filename = 'vocalize.txt'
+        self.output_filename = ''   # there is no output file
         self.delay = 0.1
         super().__init__(name=self.name,
                          input_filename=self.input_filename,
@@ -28,11 +28,14 @@ class SpeakerService(BaseService):
                    lang='en',
                    slow=False,
                    lang_check=False)
-        tts.save('tempVocal.mp3')
-        mp3 = AudioSegment.from_mp3('tempVocal.mp3')
-        mp3.export('tempVocal.wav', format='wav')
+        tmp_mp3_path = [os.getcwd(), '..', '..', 'tmp', 'tmp_vocal.mp3']
+        tmp_mp3_path = os.path.join('', *tmp_mp3_path)
+        tmp_wav_path = tmp_mp3_path.replace('.mp3', '.wav')
+        tts.save(tmp_mp3_path)
+        mp3 = AudioSegment.from_mp3(tmp_mp3_path)
+        mp3.export(tmp_wav_path, format='wav')
         p = PyAudio()
-        with wave.open('tempVocal.wav', 'rb') as wav:
+        with wave.open(tmp_wav_path, 'rb') as wav:
             wav_data = wav.readframes(wav.getnframes())
             stream = p.open(format=p.get_format_from_width(wav.getsampwidth()),
                             channels=wav.getnchannels(),
@@ -43,6 +46,6 @@ class SpeakerService(BaseService):
             stream.write(wav_data)
             stream.stop_stream()
             stream.close()
-        os.remove('tempVocal.mp3')
-        os.remove('tempVocal.wav')
+        os.remove(tmp_mp3_path)
+        os.remove(tmp_wav_path)
         p.terminate()
