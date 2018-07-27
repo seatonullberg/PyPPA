@@ -51,8 +51,6 @@ class WatcherService(BaseService):
         process_this_frame = True
         while True:
             ret, frame = video_capture.read()
-            if not ret:
-                continue
             # Resize frame of video to 1/4 size for faster face recognition processing
             small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
             # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
@@ -96,6 +94,7 @@ class WatcherService(BaseService):
 
         # Display the resulting image
         cv2.imshow('PyPPA Vision', frame_data['frame'])
+        cv2.waitKey(1)
 
     def analyze_frame(self, frame_data):
         # spawn multiple analysis threads

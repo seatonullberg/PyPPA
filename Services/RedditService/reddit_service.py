@@ -16,16 +16,6 @@ class RedditService(BaseService):
                          output_filename=self.output_filename,
                          delay=self.delay)
 
-        CLIENT_ID = self.config_obj.environment_variables['RedditTasks']['CLIENT_ID']
-        SECRET = self.config_obj.environment_variables['RedditTasks']['SECRET']
-        USER_AGENT = self.config_obj.environment_variables['RedditTasks']['USER_AGENT']
-        USERNAME = self.config_obj.environment_variables['RedditTasks']['USERNAME']
-
-        self.BOT = praw.Reddit(client_id=CLIENT_ID,
-                               client_secret=SECRET,
-                               user_agent=USER_AGENT)
-        self.USER = self.BOT.redditor(USERNAME)
-
     def default(self):
         # every hour run text archival
         if self.clock.since_output > 3600:
@@ -37,11 +27,22 @@ class RedditService(BaseService):
                 - conversational not currently implemented
                 :return: None (writes data to file)
                 '''
+        CLIENT_ID = self.config_obj.environment_variables['RedditTasks']['CLIENT_ID']
+        SECRET = self.config_obj.environment_variables['RedditTasks']['SECRET']
+        USER_AGENT = self.config_obj.environment_variables['RedditTasks']['USER_AGENT']
+        USERNAME = self.config_obj.environment_variables['RedditTasks']['USERNAME']
+
+        BOT = praw.Reddit(client_id=CLIENT_ID,
+                          client_secret=SECRET,
+                          user_agent=USER_AGENT)
+        USER = BOT.redditor(USERNAME)
+
+
         DATA_DIR = self.config_obj.environment_variables['Base']['DATA_DIR']
         past_urls_path = [DATA_DIR, 'background_logs', 'Reddit', 'text_url_log.txt']
         past_urls = [url.replace('\n', '') for url in open(os.path.join('', *past_urls_path), 'r').readlines()]
         # iterate over the 100 top posts
-        for post in self.BOT.subreddit('popular').hot(limit=100):
+        for post in BOT.subreddit('popular').hot(limit=100):
             # ignore previously archived posts
             if post.url in past_urls:
                 continue
