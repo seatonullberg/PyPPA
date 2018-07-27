@@ -18,7 +18,7 @@ class ListenerService(BaseService):
         self.CHANNELS = 2
         self.RATE = 44100
         self.TMP_WAV_FILENAME = "tmp_user_input.wav"
-        tmp_wav_path = [os.getcwd(), '..', '..', 'tmp', self.TMP_WAV_FILENAME]
+        tmp_wav_path = [os.getcwd(), 'tmp', self.TMP_WAV_FILENAME]
         self.TMP_WAV_FILENAME = os.path.join('', *tmp_wav_path)
         self.threshold = 0.1
         self.pre_buffer = None

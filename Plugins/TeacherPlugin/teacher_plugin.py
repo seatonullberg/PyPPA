@@ -20,7 +20,7 @@ class TeacherPlugin(BasePlugin):
         else:
             self.basic_teach(self.command_dict['premodifier'])
         # terminate after one use
-        self.pass_and_terminate(name='sleep_plugin',
+        self.pass_and_terminate(name='SleepPlugin',
                                 cmd='sleep')
 
     def basic_teach(self, query):

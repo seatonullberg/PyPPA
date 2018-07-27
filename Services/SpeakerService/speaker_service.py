@@ -28,7 +28,7 @@ class SpeakerService(BaseService):
                    lang='en',
                    slow=False,
                    lang_check=False)
-        tmp_mp3_path = [os.getcwd(), '..', '..', 'tmp', 'tmp_vocal.mp3']
+        tmp_mp3_path = [os.getcwd(), 'tmp', 'tmp_vocal.mp3']
         tmp_mp3_path = os.path.join('', *tmp_mp3_path)
         tmp_wav_path = tmp_mp3_path.replace('.mp3', '.wav')
         tts.save(tmp_mp3_path)

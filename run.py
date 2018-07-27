@@ -3,9 +3,9 @@ import os
 import atexit
 from multiprocessing import Process
 from ctypes import *
-from Services.ListenerService.Listener import Listener
-from Services.SpeakerService.Speaker import Speaker
-from Services.WatcherService.Watcher import BackgroundWatcher
+from Services.ListenerService.listener_service import ListenerService
+from Services.SpeakerService.speaker_service import SpeakerService
+from Services.WatcherService.watcher_service import WatcherService
 from generate_config import Configuration
 from Plugins.SleepPlugin.sleep_plugin import SleepPlugin
 
@@ -37,16 +37,16 @@ if __name__ == "__main__":
     o.make()
 
     # initialize listener in child process
-    o = Listener()
+    o = ListenerService()
     Process(target=o.mainloop, name='Listener').start()
 
     # initialize speaker in child process
-    o = Speaker()
+    o = SpeakerService()
     Process(target=o.mainloop, name='Speaker').start()
 
-    # initialize the watcher in a child process
-    o = BackgroundWatcher()
-    Process(target=o.startup, name='Watcher').start()
+    # initialize watcher in a child process
+    o = WatcherService()
+    Process(target=o.mainloop(), name='Watcher').start()
 
     # initialize sleep plugin in child process
     o = SleepPlugin()

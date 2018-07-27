@@ -47,7 +47,8 @@ class NewsPlugin(BasePlugin):
             self.vocalize(article['description'])
             time.sleep(0.5)
 
-        # TODO: Figure out how to implement betas
+        self.pass_and_terminate(name='SleepPlugin',
+                                cmd='sleep')
 
 
 
