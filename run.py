@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
     # initialize watcher in a child process
     o = WatcherService()
-    Process(target=o.mainloop(), name='Watcher').start()
+    Process(target=o.mainloop, name='Watcher').start()
 
     # initialize sleep plugin in child process
     o = SleepPlugin()

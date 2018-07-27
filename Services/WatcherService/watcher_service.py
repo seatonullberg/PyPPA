@@ -13,7 +13,7 @@ class WatcherService(BaseService):
         # use queue to communicate with thread
         self.queue = Queue()
         # thread to read the video stream continuously
-        Thread(target=self.read_frames, args=([self.queue])).start()
+        self.video_read_thread = None
 
         self.name = 'WatcherService'
         self.input_filename = 'watcher_service.in'
@@ -28,6 +28,11 @@ class WatcherService(BaseService):
         # if instructions are sent, they will be put in queue for display tio intercept
         # continuously write frame data to outfile
 
+    def default(self):
+        if self.video_read_thread is None:
+            self.video_read_thread = Thread(target=self.read_frames, args=([self.queue]))
+            self.video_read_thread.start()
+
     def active(self):
         # place instructions into the queue
         instructions = pickle.load(self.input_filename)
@@ -39,7 +44,7 @@ class WatcherService(BaseService):
         frame_data = {"frame": None,
                       "face_locations": None,
                       "face_encodings": None,
-                      "face_names": [],
+                      "face_names": None,
                       "rgb_small_frame": None,
                       "cursor_center": None}
         video_capture = cv2.VideoCapture(0)
@@ -72,22 +77,22 @@ class WatcherService(BaseService):
             process_this_frame = not process_this_frame
 
     def display_video(self, frame_data, instructions=None):
-        # Display the captured video frame
-        for (top, right, bottom, left), name in zip(frame_data['face_locations'],
-                                                    frame_data['face_names']):
-            # Scale back up face locations since the frame we detected in was scaled to 1/4 size
-            top *= 4
-            right *= 4
-            bottom *= 4
-            left *= 4
+        if frame_data['face_locations'] is not None and frame_data['face_names'] is not None:
+            for (top, right, bottom, left), name in zip(frame_data['face_locations'],
+                                                        frame_data['face_names']):
+                # Scale back up face locations since the frame we detected in was scaled to 1/4 size
+                top *= 4
+                right *= 4
+                bottom *= 4
+                left *= 4
 
-            # Draw a box around the face
-            cv2.rectangle(frame_data['frame'], (left, top), (right, bottom), (0, 0, 255), 2)
+                # Draw a box around the face
+                cv2.rectangle(frame_data['frame'], (left, top), (right, bottom), (0, 0, 255), 2)
 
-            # Draw a label with a name below the face
-            cv2.rectangle(frame_data['frame'], (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
-            font = cv2.FONT_HERSHEY_DUPLEX
-            cv2.putText(frame_data['frame'], name, (left + 6, bottom - 6), font, 0.75, (255, 255, 255), 1)
+                # Draw a label with a name below the face
+                cv2.rectangle(frame_data['frame'], (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
+                font = cv2.FONT_HERSHEY_DUPLEX
+                cv2.putText(frame_data['frame'], name, (left + 6, bottom - 6), font, 0.75, (255, 255, 255), 1)
 
         # Display the resulting image
         cv2.imshow('PyPPA Vision', frame_data['frame'])
@@ -97,6 +102,7 @@ class WatcherService(BaseService):
         # communicate with another queue
         # write the output from this thread
         queue = Queue()
+        self.output(frame_data)
         # call the analysis threads
         # wait to join all
         # assemble the final frame_data dict and pickle it
