@@ -67,7 +67,7 @@ class BaseService(object):
         '''
         try:
             # load the configuration pickle
-            config_pickle_path = [os.getcwd(), 'public_pickles', 'configuration.p']
+            config_pickle_path = [os.getcwd(), 'tmp', 'configuration.p']
             config_pickle_path = os.path.join('', *config_pickle_path)
             config_obj = pickle.load(open(config_pickle_path, 'rb'))
         except FileNotFoundError:

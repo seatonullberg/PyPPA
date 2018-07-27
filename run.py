@@ -1,11 +1,13 @@
 #!/usr/bin/python
 import os
 import atexit
+import time
 from multiprocessing import Process
 from ctypes import *
 from Services.ListenerService.listener_service import ListenerService
 from Services.SpeakerService.speaker_service import SpeakerService
 from Services.WatcherService.watcher_service import WatcherService
+from Services.VisualCueService.visual_cue_service import VisualCueService
 from generate_config import Configuration
 from Plugins.SleepPlugin.sleep_plugin import SleepPlugin
 
@@ -52,3 +54,10 @@ if __name__ == "__main__":
     o = SleepPlugin()
     cmd = 'sleep'
     Process(target=o.initialize, name=o.name, args=(cmd,)).start()
+
+    # allow the threshold to reset
+    time.sleep(1)
+
+    # initialize visual cue service in child process
+    o = VisualCueService()
+    Process(target=o.mainloop, name='VisualCueService').start()
