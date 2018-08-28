@@ -263,7 +263,7 @@ class BasePlugin(object):
     @property
     def frame_data(self):
         '''
-        Load the pickled dictionary of visual information produced by Watcher
+        Load the pickled dictionary of visual information produced by WatcherService
         :return: dict(frame_data)
         '''
         frame_data_path = [os.getcwd(), 'tmp', 'frame_data.p']
@@ -343,6 +343,11 @@ class BasePlugin(object):
     ---------------------
     '''
     def generate_webdriver(self, options=None):
+        '''
+        Produces a selenium webdriver  for the plugin to use
+        :param options: a selenium.webdriver.ChromeOptions object to override default options
+        :return: selenium.webdriver
+        '''
         CHROME_PROFILE_PATH = self.config_obj.environment_variables[self.name]['CHROME_PROFILE_PATH']
         # use the actual chromedriver binary at /usr/local/bin/chromedriver
         CHROMEDRIVER_PATH = self.config_obj.environment_variables[self.name]['CHROMEDRIVER_PATH']
