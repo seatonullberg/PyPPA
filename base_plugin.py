@@ -7,6 +7,7 @@ import stringcase
 from multiprocessing import Process
 from threading import Thread
 import struct
+from selenium import webdriver
 
 
 # TODO: integrate more intelligent mannerisms for plugins to use
@@ -57,7 +58,6 @@ class BasePlugin(object):
                     self.make_active()
             if self.isActive:
                 if cmd is None:
-                    #cmd = self.listener.listen_and_convert()
                     cmd = self.get_command()
                 self.command_parser(cmd)
                 self.function_handler()
@@ -336,6 +336,26 @@ class BasePlugin(object):
         # wait until the content has been vocalized
         while os.path.isfile(signal_path):
             continue
+
+    '''
+    ---------------------
+    Webdriver integration
+    ---------------------
+    '''
+    def generate_webdriver(self, options=None):
+        CHROME_PROFILE_PATH = self.config_obj.environment_variables[self.name]['CHROME_PROFILE_PATH']
+        # use the actual chromedriver binary at /usr/local/bin/chromedriver
+        CHROMEDRIVER_PATH = self.config_obj.environment_variables[self.name]['CHROMEDRIVER_PATH']
+        # set default options
+        if options is None:
+            options = webdriver.ChromeOptions()
+            options.add_argument("--user-data-dir={}".format(CHROME_PROFILE_PATH))
+            options.add_argument("--disable-infobars")
+            options.add_argument("--window-size=1920,1080")
+            options.add_experimental_option('excludeSwitches', ['disable-component-update'])
+        driver = webdriver.Chrome(executable_path=CHROMEDRIVER_PATH,
+                                  chrome_options=options)
+        return driver
 
 
 '''
