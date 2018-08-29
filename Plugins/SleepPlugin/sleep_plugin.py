@@ -20,6 +20,15 @@ class SleepPlugin(BasePlugin):
         :return: None
         '''
         # ask for and collect command
+        args_dict = {'name': self.name,
+                     'html': 'Awake...',
+                     'host': '0.0.0.0',
+                     'port': self.config_obj.port_map[self.name]}
+        self.serve_flask_app(args_dict)
+        import time
+        time.sleep(3)
+        driver = self.generate_webdriver()
+        driver.get("http://localhost:{}".format(self.config_obj.port_map[self.name]))
         print("Awake...")
         self.vocalize("how can I help you?")
         cmd = self.get_command()

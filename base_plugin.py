@@ -339,7 +339,7 @@ class BasePlugin(object):
 
     '''
     ---------------------
-    Webdriver integration
+    Webdriver and flask app integration
     ---------------------
     '''
     def generate_webdriver(self, options=None):
@@ -348,9 +348,9 @@ class BasePlugin(object):
         :param options: a selenium.webdriver.ChromeOptions object to override default options
         :return: selenium.webdriver
         '''
-        CHROME_PROFILE_PATH = self.config_obj.environment_variables[self.name]['CHROME_PROFILE_PATH']
+        CHROME_PROFILE_PATH = self.config_obj.environment_variables['Base']['CHROME_PROFILE_PATH']
         # use the actual chromedriver binary at /usr/local/bin/chromedriver
-        CHROMEDRIVER_PATH = self.config_obj.environment_variables[self.name]['CHROMEDRIVER_PATH']
+        CHROMEDRIVER_PATH = self.config_obj.environment_variables['Base']['CHROMEDRIVER_PATH']
         # set default options
         if options is None:
             options = webdriver.ChromeOptions()
@@ -361,6 +361,14 @@ class BasePlugin(object):
         driver = webdriver.Chrome(executable_path=CHROMEDRIVER_PATH,
                                   chrome_options=options)
         return driver
+
+    def serve_flask_app(self, args_dict):
+        # {html: str(), name: str(), host: str(), port: int()}
+        # write the args dict to the flask input file
+        input_path = self.config_obj.services['FlaskService']['input_filename']
+        with open(input_path, 'wb') as f:
+            pickle.dump(args_dict, f)
+            print('dumped')
 
 
 '''

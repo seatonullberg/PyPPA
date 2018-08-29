@@ -27,12 +27,18 @@ class FlaskService(BaseService):
         self.app_dict = {}
 
     def make_app(self):
+        while True:
+            if os.path.isfile(self.input_filename):
+                break
+            else:
+                continue
         args_dict = pickle.load(open(self.input_filename, 'rb'))
         # instantiate a flask app
         app = FlaskApp(name=args_dict['name'],
                        host=args_dict['host'],
                        port=args_dict['port'])
         self.app_dict[args_dict['name']] = app
+        app.route('/')(base)
         return app
 
     def active(self):
@@ -51,5 +57,9 @@ class FlaskService(BaseService):
             app = self.app_dict[args_dict['name']]
         except KeyError:
             app = self.make_app()
-        render = lambda _html:  _html
-        app.route('/{}'.format(args_dict['name']))(render(html))
+        app.route('/')(base)
+        os.remove(self.input_filename)
+
+
+def base():
+    return 'testing'

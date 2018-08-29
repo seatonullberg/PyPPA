@@ -12,7 +12,6 @@ def base():
 ### THIS IS THE ALTERNATIVE TO THE DECORATOR SYNTAX
 app.route('/')(base)
 ### ALLOWS THE FLASKAPP OBJECT TO BE PROGRAMATICALLY GENERATED
-# plugin passes in a list of functions and this logic is applied where 'base' is a passed in function
 
 
 def run(url):
@@ -22,19 +21,20 @@ def run(url):
     options.add_argument('--disable-gpu')
     options.add_argument('--disable-extensions')
     options.add_argument('--disable-default-apps')
+    options.add_argument("--window-size=1920,1080")
     driver = webdriver.Chrome(
                 executable_path='/usr/local/bin/chromedriver',
                 options=options,
                 )
     driver.get(url)
     time.sleep(3)
-    driver.get("http://localhost:5000")
+    driver.get("http://localhost:5555")
     time.sleep(3)
     driver.quit()
 
 
 if __name__ == "__main__":
-    Process(target=app.run, args=(['0.0.0.0', 5000])).start()
+    Process(target=app.run, args=(['0.0.0.0', 5555])).start()
     allurls = ['https://github.com/',
                'https://docs.python.org/3/library/webbrowser.html'
                ]
