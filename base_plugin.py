@@ -353,13 +353,22 @@ class BasePlugin(object):
         CHROMEDRIVER_PATH = self.config_obj.environment_variables['Base']['CHROMEDRIVER_PATH']
         # set default options
         if options is None:
+            '''
             options = webdriver.ChromeOptions()
             options.add_argument("--user-data-dir={}".format(CHROME_PROFILE_PATH))
             options.add_argument("--disable-infobars")
             options.add_argument("--window-size=1920,1080")
             options.add_experimental_option('excludeSwitches', ['disable-component-update'])
+            '''
+            options = webdriver.chrome.options.Options()
+            options.add_argument('--no-sandbox')
+            options.add_argument('--no-default-browser-check')
+            options.add_argument('--disable-gpu')
+            options.add_argument('--disable-extensions')
+            options.add_argument('--disable-default-apps')
+            options.add_argument("--window-size=1920,1080")
         driver = webdriver.Chrome(executable_path=CHROMEDRIVER_PATH,
-                                  chrome_options=options)
+                                  options=options)
         return driver
 
     def serve_flask_app(self, args_dict):
@@ -368,8 +377,6 @@ class BasePlugin(object):
         input_path = self.config_obj.services['FlaskService']['input_filename']
         with open(input_path, 'wb') as f:
             pickle.dump(args_dict, f)
-            print('dumped')
-
 
 '''
 ------------------------------------------

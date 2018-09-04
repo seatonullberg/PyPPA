@@ -1,21 +1,23 @@
-import os
 import pickle
 from base_service import BaseService
-from flask import Flask
+from flask import Flask, render_template
+from threading import Thread
+import os
+import time
+app = Flask("FlaskService")
 
 
-class FlaskApp(Flask):
-
-    def __init__(self, name, host, port):
-        self.host = host
-        self.port = port
-        super().__init__(name)
-        self.run(host=self.host, port=self.port)
+@app.route('/<name>')
+def test_method(name):
+    html_path = os.path.join('Services', 'FlaskService', 'templates', '{}.html'.format(name))
+    with open(html_path) as f:
+        html = f.read()
+    return html
 
 
 class FlaskService(BaseService):
 
-    def __init__(self):
+    def __init__(self, host='0.0.0.0', port=7000):
         self.name = 'FlaskService'
         self.input_filename = 'flask_service_input.p'
         self.output_filename = 'flask_service.out'
@@ -24,42 +26,45 @@ class FlaskService(BaseService):
                          input_filename=self.input_filename,
                          output_filename=self.output_filename,
                          delay=self.delay)
-        self.app_dict = {}
+        self.host = host
+        self.port = port
 
-    def make_app(self):
+    def mainloop(self):
+        ##### CHANGES FROM BASE
+        # dynamically add routes and files for all plugins
+        for p in self.config_obj.plugins:
+            html_path = os.path.join('Services', 'FlaskService', 'templates', '{}.html'.format(p))
+            with open(html_path, 'w') as f:
+                f.write(p)
+            '''
+            method_str = "def {plugin}(self):\n\treturn render_template({plugin}.html)".format(plugin=p)
+            method = exec(method_str)
+            setattr(self, p, method)
+            app.route('/{}'.format(p))(self.test_method)
+            '''
+        # start the flask app
+        Thread(target=app.run, args=[self.host, self.port]).start()
+        ##### END CHANGES
+
+        # keep the service running continuously
         while True:
             if os.path.isfile(self.input_filename):
-                break
+                # wait for any desired response delay
+                # TODO: do this without delays
+                # it currently exists because some files
+                # can trigger True before the content is ready
+                time.sleep(self.delay)
+                self.active()
+                # clean up to prevent perpetual active loop
+                os.remove(self.input_filename)
             else:
-                continue
-        args_dict = pickle.load(open(self.input_filename, 'rb'))
-        # instantiate a flask app
-        app = FlaskApp(name=args_dict['name'],
-                       host=args_dict['host'],
-                       port=args_dict['port'])
-        self.app_dict[args_dict['name']] = app
-        app.route('/')(base)
-        return app
+                self.default()
 
     def active(self):
         args_dict = pickle.load(open(self.input_filename, 'rb'))
-        # process html arg as html string literal
-        if os.path.isfile(args_dict['html']):
-            # process the html as a filepath
-            with open(args_dict['html']) as f:
-                html = ''.join(f.readlines())
-        else:
-            # process the html as a literal html string
-            html = args_dict['html']
-
-        # check if app has already been instantiated by the same name
-        try:
-            app = self.app_dict[args_dict['name']]
-        except KeyError:
-            app = self.make_app()
-        app.route('/')(base)
-        os.remove(self.input_filename)
-
-
-def base():
-    return 'testing'
+        _name = args_dict['name']
+        _html = args_dict['html']
+        html_path = os.path.join('Services', 'FlaskService', 'templates', '{}.html'.format(_name))
+        with open(html_path, 'w') as f:
+            f.write(_html)
+        test_method(_name)
