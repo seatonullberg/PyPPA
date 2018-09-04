@@ -338,9 +338,9 @@ class BasePlugin(object):
             continue
 
     '''
-    ---------------------
+    -----------------------------------
     Webdriver and flask app integration
-    ---------------------
+    -----------------------------------
     '''
     def generate_webdriver(self, options=None):
         '''
@@ -377,6 +377,14 @@ class BasePlugin(object):
         input_path = self.config_obj.services['FlaskService']['input_filename']
         with open(input_path, 'wb') as f:
             pickle.dump(args_dict, f)
+
+    @property
+    def flask_url(self):
+        _port = self.config_obj.environment_variables['FlaskService']['PORT']
+        _host = self.config_obj.environment_variables['FlaskService']['HOST']
+        return "{host}:{port}/{name}".format(host=_host,
+                                             port=_port,
+                                             name=self.name)
 
 '''
 ------------------------------------------

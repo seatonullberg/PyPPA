@@ -19,16 +19,15 @@ class SleepPlugin(BasePlugin):
         Listen for a command and send it to the proper plugin
         :return: None
         '''
-        # ask for and collect command
+
+        # initialize the flask app
         args_dict = {'name': self.name,
                      'html': 'Awake...'}
         self.serve_flask_app(args_dict)
-        import time
-        time.sleep(3)
         driver = self.generate_webdriver()
-        driver.get("http://localhost:7000/SleepPlugin")
+        driver.get(self.flask_url)
 
-
+        # ask for and collect command
         print("Awake...")
         self.vocalize("how can I help you?")
         cmd = self.get_command()
