@@ -7,6 +7,7 @@ import stringcase
 from multiprocessing import Process
 from threading import Thread
 import struct
+from selenium import webdriver
 
 
 # TODO: integrate more intelligent mannerisms for plugins to use
@@ -57,7 +58,6 @@ class BasePlugin(object):
                     self.make_active()
             if self.isActive:
                 if cmd is None:
-                    #cmd = self.listener.listen_and_convert()
                     cmd = self.get_command()
                 self.command_parser(cmd)
                 self.function_handler()
@@ -263,7 +263,7 @@ class BasePlugin(object):
     @property
     def frame_data(self):
         '''
-        Load the pickled dictionary of visual information produced by Watcher
+        Load the pickled dictionary of visual information produced by WatcherService
         :return: dict(frame_data)
         '''
         frame_data_path = [os.getcwd(), 'tmp', 'frame_data.p']
@@ -337,6 +337,54 @@ class BasePlugin(object):
         while os.path.isfile(signal_path):
             continue
 
+    '''
+    -----------------------------------
+    Webdriver and flask app integration
+    -----------------------------------
+    '''
+    def generate_webdriver(self, options=None):
+        '''
+        Produces a selenium webdriver  for the plugin to use
+        :param options: a selenium.webdriver.ChromeOptions object to override default options
+        :return: selenium.webdriver
+        '''
+        CHROME_PROFILE_PATH = self.config_obj.environment_variables['Base']['CHROME_PROFILE_PATH']
+        # use the actual chromedriver binary at /usr/local/bin/chromedriver
+        CHROMEDRIVER_PATH = self.config_obj.environment_variables['Base']['CHROMEDRIVER_PATH']
+        # set default options
+        if options is None:
+            '''
+            options = webdriver.ChromeOptions()
+            options.add_argument("--user-data-dir={}".format(CHROME_PROFILE_PATH))
+            options.add_argument("--disable-infobars")
+            options.add_argument("--window-size=1920,1080")
+            options.add_experimental_option('excludeSwitches', ['disable-component-update'])
+            '''
+            options = webdriver.chrome.options.Options()
+            options.add_argument('--no-sandbox')
+            options.add_argument('--no-default-browser-check')
+            options.add_argument('--disable-gpu')
+            options.add_argument('--disable-extensions')
+            options.add_argument('--disable-default-apps')
+            options.add_argument("--window-size=1920,1080")
+        driver = webdriver.Chrome(executable_path=CHROMEDRIVER_PATH,
+                                  options=options)
+        return driver
+
+    def serve_flask_app(self, args_dict):
+        # {html: str(), name: str(), host: str(), port: int()}
+        # write the args dict to the flask input file
+        input_path = self.config_obj.services['FlaskService']['input_filename']
+        with open(input_path, 'wb') as f:
+            pickle.dump(args_dict, f)
+
+    @property
+    def flask_url(self):
+        _port = self.config_obj.environment_variables['FlaskService']['PORT']
+        _host = self.config_obj.environment_variables['FlaskService']['HOST']
+        return "{host}:{port}/{name}".format(host=_host,
+                                             port=_port,
+                                             name=self.name)
 
 '''
 ------------------------------------------

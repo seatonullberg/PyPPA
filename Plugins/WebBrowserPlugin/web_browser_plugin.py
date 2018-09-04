@@ -1,6 +1,6 @@
+# TODO: Break into individual plugins instead of betas now that webdriver is integrated to base class
 from base_plugin import BasePlugin
 import selenium
-from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -21,20 +21,8 @@ class WebBrowserPlugin(BasePlugin):
                          modifiers=self.MODIFIERS,
                          name=self.name)
 
-    def _generate_driver(self):
-        CHROME_PROFILE_PATH = self.config_obj.environment_variables[self.name]['CHROME_PROFILE_PATH']
-        # use the actual chromedriver binary at /usr/local/bin/chromedriver
-        CHROMEDRIVER_PATH = self.config_obj.environment_variables[self.name]['CHROMEDRIVER_PATH']
-        options = webdriver.ChromeOptions()
-        options.add_argument("--user-data-dir={}".format(CHROME_PROFILE_PATH))
-        options.add_argument("--disable-infobars")
-        options.add_experimental_option('excludeSwitches', ['disable-component-update'])
-        driver = webdriver.Chrome(executable_path=CHROMEDRIVER_PATH,
-                                  chrome_options=options)
-        return driver
-
     def search_google(self):
-        driver = self._generate_driver()
+        driver = self.generate_webdriver()
         # send to the beta
         self.initialize_beta(name='google_search_beta',
                              cmd='search {}'.format(self.command_dict['premodifier']),
@@ -45,7 +33,8 @@ class WebBrowserPlugin(BasePlugin):
         NETFLIX_EMAIL = self.config_obj.environment_variables[self.name]['NETFLIX_EMAIL']
         NETFLIX_PASSWORD = self.config_obj.environment_variables[self.name]['NETFLIX_PASSWORD']
         NETFLIX_USER = self.config_obj.environment_variables[self.name]['NETFLIX_USER']
-        driver = self._generate_driver()
+
+        driver = self.generate_webdriver()
         driver.get('https://www.netflix.com/')
         # move to corner for easy cursor manipulation later
         driver.set_window_position(x=0, y=0)
@@ -77,7 +66,7 @@ class WebBrowserPlugin(BasePlugin):
                              data=driver)
 
     def search_youtube(self):
-        driver = self._generate_driver()
+        driver = self.generate_webdriver()
         # send to beta
         self.initialize_beta(name='youtube_search_beta',
                              cmd='search {}'.format(self.command_dict['premodifier']),

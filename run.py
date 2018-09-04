@@ -38,17 +38,17 @@ if __name__ == "__main__":
     o = Configuration()
     o.make()
 
-    # initialize listener in child process
+    # initialize listener service in child process
     o = ListenerService()
-    Process(target=o.mainloop, name='Listener').start()
+    Process(target=o.mainloop, name=o.name).start()
 
-    # initialize speaker in child process
+    # initialize speaker service in child process
     o = SpeakerService()
-    Process(target=o.mainloop, name='Speaker').start()
+    Process(target=o.mainloop, name=o.name).start()
 
-    # initialize watcher in a child process
+    # initialize watcher service in a child process
     o = WatcherService()
-    Process(target=o.mainloop, name='Watcher').start()
+    Process(target=o.mainloop, name=o.name).start()
 
     # initialize sleep plugin in child process
     o = SleepPlugin()
@@ -60,4 +60,10 @@ if __name__ == "__main__":
 
     # initialize visual cue service in child process
     o = VisualCueService()
-    Process(target=o.mainloop, name='VisualCueService').start()
+    Process(target=o.mainloop, name=o.name).start()
+
+    # for some reason this import messes with the Watcher service so I had to move it here???
+    from Services.FlaskService.flask_service import FlaskService
+    o = FlaskService()
+    Process(target=o.mainloop, name=o.name).start()
+
