@@ -4,9 +4,11 @@ from pydub import AudioSegment
 from pyaudio import PyAudio
 import wave
 import os
+import subprocess
 
 
-# TODO: better handle the tmp files
+# TODO: Stabilize the location of mimic TTS engine
+# TODO: Make TTS type a configurable option
 class SpeakerService(BaseService):
     # there is no default behavior and no output file
     # output is through the speakers
@@ -22,6 +24,25 @@ class SpeakerService(BaseService):
                          delay=self.delay)
 
     def active(self):
+        # mimic is default
+        try:
+            tts_engine = self.config_obj.environment_variables[self.name]['TTS_ENGINE']
+        except KeyError:
+            self._mimic_tts()
+            return
+
+        if tts_engine == "mimic":
+            self._mimic_tts()
+        elif tts_engine == "gtts":
+            self._gtts_tts()
+        else:
+            self._mimic_tts()
+
+    def _mimic_tts(self):
+        mimic_path = os.path.join(os.getcwd(), 'bin', 'mimic', 'mimic')
+        subprocess.call([mimic_path, self.input_filename])
+
+    def _gtts_tts(self):
         with open(self.input_filename, 'r') as f:
             text = f.read()
         tts = gTTS(text=text,

@@ -332,7 +332,10 @@ class BasePlugin(object):
         '''
         signal_path = self.config_obj.services['SpeakerService']['input_filename']
         with open(signal_path, 'w') as f:
-            f.write(text)
+            try:
+                f.write(text)
+            except TypeError as e:
+                print(e)
         # wait until the content has been vocalized
         while os.path.isfile(signal_path):
             continue
