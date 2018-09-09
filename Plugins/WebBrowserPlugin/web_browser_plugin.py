@@ -43,8 +43,8 @@ class WebBrowserPlugin(BasePlugin):
         try:
             driver.find_element_by_link_text('Sign In').click()
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'login-body')))
-            login_email_element = driver.find_element_by_id('email')
-            login_password_element = driver.find_element_by_id('password')
+            login_email_element = driver.find_element_by_id('id_userLoginId')
+            login_password_element = driver.find_element_by_id('id_password')
             login_email_element.send_keys(NETFLIX_EMAIL)
             login_password_element.send_keys(NETFLIX_PASSWORD)
             driver.find_element_by_xpath("*//button[contains(text(),'Sign In')]").click()
