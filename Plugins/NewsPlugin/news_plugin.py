@@ -5,6 +5,7 @@ from base_plugin import BasePlugin
 
 
 # TODO: add 'about' feature to get topical news
+# TODO: implement web app logging to display the stories in an attractive way while they're read
 # - add option to open the full article
 # - add optional full text read
 # - add toggle between articles
@@ -49,6 +50,10 @@ class NewsPlugin(BasePlugin):
 
         self.pass_and_terminate(name='SleepPlugin',
                                 cmd='sleep')
+
+    def _generate_html(self):
+        # used to format the news stories so they can be served to localhost
+        pass
 
 
 

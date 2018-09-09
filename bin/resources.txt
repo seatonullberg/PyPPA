@@ -1,1 +1,3 @@
 mimic.zip
+chromedriver.zip
+chromeprofile.zip

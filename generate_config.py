@@ -107,6 +107,7 @@ class Configuration(object):
             else:
                 config['BLACKLIST'][name] = False
             config['ENVIRONMENT_VARIABLES'][name] = {}
+            # TODO: why would i ever write it this way
             for f in os.listdir(os.path.join(plugins_dir, name)):
                 if f == self.environment_fn:
                     with open(os.path.join(plugins_dir, name, f)) as environment_file:

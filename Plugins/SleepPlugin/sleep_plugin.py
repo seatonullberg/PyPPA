@@ -21,11 +21,13 @@ class SleepPlugin(BasePlugin):
         '''
 
         # initialize the flask app
+        '''
         args_dict = {'name': self.name,
                      'html': 'Awake...'}
         self.serve_flask_app(args_dict)
         driver = self.generate_webdriver()
         driver.get(self.flask_url)
+        '''
 
         # ask for and collect command
         print("Awake...")

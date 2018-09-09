@@ -7,8 +7,6 @@ import os
 import subprocess
 
 
-# TODO: Stabilize the location of mimic TTS engine
-# TODO: Make TTS type a configurable option
 class SpeakerService(BaseService):
     # there is no default behavior and no output file
     # output is through the speakers
