@@ -160,20 +160,55 @@ class Installation(object):
         # wait to finish downloading
         for t in threads:
             t.join()
+        print("Build complete!")
 
     def _fetch_resource(self, localpath):
         dirname = os.path.basename(localpath)
         # return list of files in the specified directory
-        r = requests.post(url=self.https_host+'check_resource', data={'dirname': dirname}, stream=True)
+        r = requests.post(url=self.https_host+'check_resource',
+                          data={'dirname': dirname},
+                          stream=True)
         resource_files = json.loads(r.content)
-        # process files sequentially for now
+        # spawn threads to process each file
+        threads = []
         for filename in resource_files:
-            r = requests.post(url=self.https_host+'install_resource', data={'filename': filename}, stream=True)
-            with open(localpath, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=1024):
-                    if chunk:
-                        f.write(chunk)
-            # then need to unzip
+            _localpath = os.path.join(localpath, filename)
+            t = Thread(target=self._process_resource, args=(dirname, filename, _localpath))
+            threads.append(t)
+            t.start()
+
+    def _process_resource(self, dirname, filename, localpath):
+        '''
+        download -> unzip -> delete zip
+        :param dirname: parent directory of the resource file
+        :param filename: name of the resource file
+        :param localpath: path to store the file locally
+        :return:
+        '''
+        # download individual file
+        print("Downloading {d}/{f}...".format(d=dirname, f=filename))
+        r = requests.post(url=self.https_host+'install_resource',
+                          data={'filename': filename,
+                                'dirname': dirname},
+                          stream=True)
+        # check if directory exists
+        if not os.path.isdir(os.path.dirname(localpath)):
+            os.makedirs(os.path.dirname(localpath))
+        with open(localpath, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=1024):
+                if chunk:
+                    f.write(chunk)
+
+        # unzip individual file
+        print("Unzipping {d}/{f}...".format(d=dirname, f=filename))
+        # go back 2 levels
+        unpackpath = os.path.dirname(localpath)
+        unpackpath = os.path.dirname(unpackpath)
+        shutil.unpack_archive(localpath, unpackpath)
+
+        # delete the old zip file
+        print("Removing {d}/{f}...".format(d=dirname, f=filename))
+        os.remove(localpath)
 
 
 if __name__ == "__main__":
