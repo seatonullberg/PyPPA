@@ -134,61 +134,46 @@ class Installation(object):
         # delete empty Core/
         shutil.rmtree(corepath)
 
+    def _fetch_version(self, localpath):
+        r = requests.post(url=self.https_host + 'install_version', data={'version': self.version}, stream=True)
+        with open(localpath, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=1024):
+                if chunk:
+                    f.write(chunk)
+
     def build_bin(self):
         # read the bin/resources.txt file
         resourcespath = os.path.join(self.destination, self.version, 'bin', 'resources.txt')
         with open(resourcespath, 'r') as f:
             resources = f.readlines()
+            resources = [r.replace('\n', '') for r in resources]
 
         # load the required resources
         localpath = os.path.join(self.destination, self.version, 'bin', '{}')
         threads = []
         for r in resources:
-            print("Downloading {}...".format(r))
+            # r is a directory which contains one or more zip files
             t = Thread(target=self._fetch_resource, args=(localpath.format(r),))
             threads.append(t)
             t.start()
 
-        # wait for the resources to be loaded
+        # wait to finish downloading
         for t in threads:
             t.join()
-
-        # unzip the resources
-        threads = []
-        unpackpath = os.path.join(self.destination, self.version, 'bin')
-        for r in resources:
-            if r.endswith('.zip'):
-                print("Unzipping {}...".format(r))
-                shutil.unpack_archive(localpath.format(r), unpackpath)
-                t = Thread(target=shutil.unpack_archive,
-                           args=(localpath.format(r), unpackpath)
-                           )
-                threads.append(t)
-                t.start()
-
-        # wait for the resources to be unzipped
-        for t in threads:
-            t.join()
-
-        # delete old .zip files
-        print("Cleaning {}...".format(unpackpath))
-        for r in resources:
-            if r.endswith('.zip'):
-                deletepath = os.path.join(unpackpath, r)
-                os.remove(deletepath)
-
-    def _fetch_version(self, localpath):
-        r = requests.post(url=self.https_host+'install_version', data={'version': self.version}, stream=True)
-        with open(localpath, 'wb') as f:
-            shutil.copyfileobj(r.raw, f)
 
     def _fetch_resource(self, localpath):
-        filename = os.path.basename(localpath)
-        r = requests.post(url=self.https_host+'install_resource', data={'filename': filename}, stream=True)
-        with open(localpath, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=1024):
-                if chunk:
-                    f.write(chunk)
+        dirname = os.path.basename(localpath)
+        # return list of files in the specified directory
+        r = requests.post(url=self.https_host+'check_resource', data={'dirname': dirname}, stream=True)
+        resource_files = json.loads(r.content)
+        # process files sequentially for now
+        for filename in resource_files:
+            r = requests.post(url=self.https_host+'install_resource', data={'filename': filename}, stream=True)
+            with open(localpath, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=1024):
+                    if chunk:
+                        f.write(chunk)
+            # then need to unzip
 
 
 if __name__ == "__main__":
