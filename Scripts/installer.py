@@ -6,6 +6,7 @@ from collections import OrderedDict
 import requests
 import platform
 import json
+from tqdm import tqdm
 
 
 class InstallerGui(object):
@@ -157,10 +158,8 @@ class Installation(object):
             threads.append(t)
             t.start()
 
-        # wait to finish downloading
-        for t in threads:
-            t.join()
-        print("Build complete!")
+        self._monitor_progress(resourcepath=resourcespath)
+        exit()
 
     def _fetch_resource(self, localpath):
         dirname = os.path.basename(localpath)
@@ -168,10 +167,11 @@ class Installation(object):
         r = requests.post(url=self.https_host+'check_resource',
                           data={'dirname': dirname},
                           stream=True)
-        resource_files = json.loads(r.content)
+        d = json.loads(r.content)
+
         # spawn threads to process each file
         threads = []
-        for filename in resource_files:
+        for filename in d:
             _localpath = os.path.join(localpath, filename)
             t = Thread(target=self._process_resource, args=(dirname, filename, _localpath))
             threads.append(t)
@@ -185,6 +185,7 @@ class Installation(object):
         :param localpath: path to store the file locally
         :return:
         '''
+
         # download individual file
         print("Downloading {d}/{f}...".format(d=dirname, f=filename))
         r = requests.post(url=self.https_host+'install_resource',
@@ -204,11 +205,130 @@ class Installation(object):
         # go back 2 levels
         unpackpath = os.path.dirname(localpath)
         unpackpath = os.path.dirname(unpackpath)
-        shutil.unpack_archive(localpath, unpackpath)
+        try:
+            shutil.unpack_archive(localpath, unpackpath)
+        except IsADirectoryError:
+            raise
+        except shutil.ReadError:
+            print("Error encountered while downloading {d}/{f}".format(d=dirname, f=filename))
+            print("Attempting to download {d}{f} again...".format(d=dirname, f=filename))
+            os.remove(localpath)
+            self._process_resource(dirname, filename, localpath)
+            return
 
         # delete the old zip file
         print("Removing {d}/{f}...".format(d=dirname, f=filename))
         os.remove(localpath)
+
+    def _monitor_progress(self, resourcepath):
+        pm = ProgressMonitor(resourcepath=resourcepath,
+                             host=self.https_host)
+        pm.monitor()
+
+
+# TODO: make the process terminate smoothly
+class ProgressMonitor(object):
+
+    def __init__(self, resourcepath, host):
+        self._resourcepath = resourcepath
+        self.host = host
+        self.resource_dict = {}
+        self._init_resource_dict()
+        self.pbar = tqdm(total=self.total_bytes)
+        self._progress = 0
+
+    @property
+    def resourcepath(self):
+        return self._resourcepath
+
+    @property
+    def binpath(self):
+        return os.path.dirname(self.resourcepath)
+
+    @property
+    def progress(self):
+        return self._progress
+
+    @property
+    def resource_names(self):
+        with open(self.resourcepath, 'r') as f:
+            names = f.readlines()
+            names = [n.replace('\n', '') for n in names]
+        return names
+
+    def _init_resource_dict(self):
+        for name in self.resource_names:
+            r = requests.post(url=self.host+'check_resource',
+                              data={'dirname': name},
+                              stream=True)
+            d = json.loads(r.content)
+            self.resource_dict[name] = d
+
+    @property
+    def total_bytes(self):
+        total = 0
+        for name in self.resource_dict:
+            for filename in self.resource_dict[name]:
+                size = self.resource_dict[name][filename]['size']
+                total += size
+        return total
+
+    def is_active(self):
+        # returns false only when all entries in self.resource_dict
+        # show status: complete
+        complete_count = 0
+        all_files = []
+        for name in self.resource_dict:
+            for filename in self.resource_dict[name]:
+                filepath = os.path.join(self.binpath, name, filename)
+                all_files.append(filepath)
+                d = self.resource_dict[name][filename]
+                if d['status'] == 'complete':
+                    complete_count += 1
+        if complete_count < len(all_files):
+            return True
+        else:
+            return False
+
+    # TODO
+    def was_retried(self, filepath):
+        return False
+
+    def monitor(self):
+        while self.is_active():
+            loop_progress = 0
+            for name in self.resource_dict:
+                for filename in self.resource_dict[name]:
+                    filepath = os.path.join(self.binpath, name, filename)
+                    d = self.resource_dict[name][filename]
+                    if d['status'] is None:
+                        # never before encountered
+                        # check to see if it exists yet
+                        if os.path.isfile(filepath):
+                            # activate
+                            d['status'] = 'active'
+                            # update progress
+                            current_size = os.path.getsize(filepath)
+                            loop_progress += (current_size - d['last_size'])
+                            d['last_size'] = current_size
+                    elif d['status'] == 'active':
+                        # previously encountered
+                        # check to see if it still exists
+                        if os.path.isfile(filepath):
+                            # update the progress
+                            current_size = os.path.getsize(filepath)
+                            loop_progress += (current_size - d['last_size'])
+                            d['last_size'] = current_size
+                        else:
+                            # file completed downloading or was retried
+                            if self.was_retried(filepath):
+                                # the program is attempting to reinstall the file
+                                d['status'] = None
+                                d['last_size'] = 0
+                            else:
+                                # the download completed successfully
+                                d['status'] = 'complete'
+            self.pbar.update(loop_progress)
 
 
 if __name__ == "__main__":
