@@ -7,6 +7,7 @@ import requests
 import platform
 import json
 from tqdm import tqdm
+import sys
 
 
 class InstallerGui(object):
@@ -90,6 +91,8 @@ class Installation(object):
             self.build_destination()
             self.build_version()
             self.build_bin()
+            # add automatic chmod
+            # -- use proposed autoconfig?
 
     @property
     def version(self):
@@ -166,7 +169,10 @@ class Installation(object):
             threads.append(t)
             t.start()
 
+        # wait until all downloaded
         monitor_thread.join()
+        # add bin path to system so python can import
+        sys.path.append(os.path.dirname(localpath))
 
     def _fetch_resource(self, localpath):
         dirname = os.path.basename(localpath)

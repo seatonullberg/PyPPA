@@ -1,3 +1,5 @@
 chromedriver
 chromeprofile
 mimic
+python3.6.5
+requests
