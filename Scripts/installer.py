@@ -71,6 +71,7 @@ class InstallerGui(object):
         i.build_destination()
         i.build_version()
         i.build_bin()
+        print("Installation complete!")
         exit()
 
 
@@ -150,6 +151,12 @@ class Installation(object):
             resources = f.readlines()
             resources = [r.replace('\n', '') for r in resources]
 
+        # prepare the monitor
+        self.pm = ProgressMonitor(resourcepath=resourcepath,
+                                  host=self.https_host)
+        monitor_thread = Thread(target=self.pm.monitor)
+        monitor_thread.start()
+
         # load the required resources
         localpath = os.path.join(self.destination, self.version, 'bin', '{}')
         threads = []
@@ -159,9 +166,7 @@ class Installation(object):
             threads.append(t)
             t.start()
 
-        self.pm = ProgressMonitor(resourcepath=resourcepath,
-                                  host=self.https_host)
-        self.pm.monitor()
+        monitor_thread.join()
 
     def _fetch_resource(self, localpath):
         dirname = os.path.basename(localpath)
@@ -213,15 +218,16 @@ class Installation(object):
             raise
         except shutil.ReadError:
             print("Error encountered while downloading {d}/{f}".format(d=dirname, f=filename))
-            print("Attempting to download {d}{f} again...".format(d=dirname, f=filename))
+            print("Attempting to download {d}/{f} again...".format(d=dirname, f=filename))
+            self.pm.retry_list.append(localpath)  # notify the progress monitor that a retry has occurred
             os.remove(localpath)
-            self.pm.retry_list.append(localpath)    # notify the progress monitor that a retry has occurred
             self._process_resource(dirname, filename, localpath)
             return
-
         # delete the old zip file
         print("Removing {d}/{f}...".format(d=dirname, f=filename))
         os.remove(localpath)
+        if localpath in self.pm.retry_list:
+            self.pm.retry_list.remove(localpath)
 
 
 # TODO: make the process terminate smoothly
@@ -232,7 +238,7 @@ class ProgressMonitor(object):
         self.host = host
         self.resource_dict = {}
         self._init_resource_dict()
-        self.pbar = tqdm(total=self.total_bytes)
+        self.pbar = tqdm(total=self.total_bytes, unit='bytes')
         self._progress = 0
         self.retry_list = []
 
@@ -289,7 +295,6 @@ class ProgressMonitor(object):
         else:
             return False
 
-    # TODO
     def was_retried(self, filepath):
         if filepath in self.retry_list:
             return True
@@ -318,7 +323,11 @@ class ProgressMonitor(object):
                         # check to see if it still exists
                         if os.path.isfile(filepath):
                             # update the progress
-                            current_size = os.path.getsize(filepath)
+                            try:
+                                current_size = os.path.getsize(filepath)
+                            except FileNotFoundError:
+                                # the file was deleted immediately after the if statement
+                                current_size = d['size']
                             loop_progress += (current_size - d['last_size'])
                             d['last_size'] = current_size
                         else:
@@ -330,6 +339,8 @@ class ProgressMonitor(object):
                             else:
                                 # the download completed successfully
                                 d['status'] = 'complete'
+                                print("Completed: {}".format(filename))
+            self._progress += loop_progress
             self.pbar.update(loop_progress)
 
 
