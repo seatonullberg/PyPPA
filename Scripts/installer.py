@@ -84,6 +84,7 @@ class Installation(object):
         '''
         self._version = version
         self._destination = destination
+        self.pm = None  # ProgressMonitor object
         if auto_build:
             self.build_destination()
             self.build_version()
@@ -144,8 +145,8 @@ class Installation(object):
 
     def build_bin(self):
         # read the bin/resources.txt file
-        resourcespath = os.path.join(self.destination, self.version, 'bin', 'resources.txt')
-        with open(resourcespath, 'r') as f:
+        resourcepath = os.path.join(self.destination, self.version, 'bin', 'resources.txt')
+        with open(resourcepath, 'r') as f:
             resources = f.readlines()
             resources = [r.replace('\n', '') for r in resources]
 
@@ -158,8 +159,9 @@ class Installation(object):
             threads.append(t)
             t.start()
 
-        self._monitor_progress(resourcepath=resourcespath)
-        exit()
+        self.pm = ProgressMonitor(resourcepath=resourcepath,
+                                  host=self.https_host)
+        self.pm.monitor()
 
     def _fetch_resource(self, localpath):
         dirname = os.path.basename(localpath)
@@ -213,17 +215,13 @@ class Installation(object):
             print("Error encountered while downloading {d}/{f}".format(d=dirname, f=filename))
             print("Attempting to download {d}{f} again...".format(d=dirname, f=filename))
             os.remove(localpath)
+            self.pm.retry_list.append(localpath)    # notify the progress monitor that a retry has occurred
             self._process_resource(dirname, filename, localpath)
             return
 
         # delete the old zip file
         print("Removing {d}/{f}...".format(d=dirname, f=filename))
         os.remove(localpath)
-
-    def _monitor_progress(self, resourcepath):
-        pm = ProgressMonitor(resourcepath=resourcepath,
-                             host=self.https_host)
-        pm.monitor()
 
 
 # TODO: make the process terminate smoothly
@@ -236,6 +234,7 @@ class ProgressMonitor(object):
         self._init_resource_dict()
         self.pbar = tqdm(total=self.total_bytes)
         self._progress = 0
+        self.retry_list = []
 
     @property
     def resourcepath(self):
@@ -292,7 +291,10 @@ class ProgressMonitor(object):
 
     # TODO
     def was_retried(self, filepath):
-        return False
+        if filepath in self.retry_list:
+            return True
+        else:
+            return False
 
     def monitor(self):
         while self.is_active():
