@@ -230,7 +230,6 @@ class Installation(object):
             self.pm.retry_list.remove(localpath)
 
 
-# TODO: make the process terminate smoothly
 class ProgressMonitor(object):
 
     def __init__(self, resourcepath, host):
