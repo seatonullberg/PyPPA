@@ -10,7 +10,6 @@ import struct
 from selenium import webdriver
 
 
-# TODO: integrate more intelligent mannerisms for plugins to use
 class BasePlugin(object):
 
     def __init__(self, command_hook_dict, modifiers, name):
@@ -41,12 +40,12 @@ class BasePlugin(object):
         self.mainloop(cmd)
 
     def mainloop(self, cmd=None):
-        '''
+        """
         The loop which keeps the plugin alive until an explicit termination call is made
         through self.pass_and_terminate() or self.initialize_and_terminate()
         :param cmd: initial input command to use for direct execution of prerecorded command
         :return: None
-        '''
+        """
         while True:
             self.reset_command_dict()
             # check the queue for messages from server
@@ -65,11 +64,11 @@ class BasePlugin(object):
             cmd = None
 
     def command_parser(self, command):
-        '''
+        """
         Process the user input to return a dict of command information
         - {'command_hook':str(), 'premodifier':str(), 'modifier':str(), 'postmodifier':str()}
         :return: None, redefines self.command_dict
-        '''
+        """
         # get the command hook
         ch_range = (0, 0)
         for hook in self.COMMAND_HOOK_DICT:
@@ -164,23 +163,23 @@ class BasePlugin(object):
     '''
 
     def pass_and_remain(self, name, cmd):
-        '''
+        """
         send message to new plugin and remain in background
         :param name: name of plugin message is going to
         :param cmd: command sent to that plugin
         :return: None
-        '''
+        """
         self.isActive = False
         message_str = "{}${}".format(name, cmd)
         self.send_queue.put(message_str)
 
     def pass_and_terminate(self, name, cmd):
-        '''
+        """
         send message to new plugin and terminate subsequently
         :param name: name of plugin message is going to
         :param cmd: command sent to that plugin
         :return: None
-        '''
+        """
         self.isActive = False
         message_str = "{}${}".format(name, cmd)
         self.send_queue.put(message_str)
@@ -191,12 +190,12 @@ class BasePlugin(object):
         os.kill(os.getpid(), 9)
 
     def initialize_and_remain(self, name, cmd):
-        '''
+        """
         Initialize a plugin that is not yet running and then stay in background
         :param name: name of the plugin to initialize
         :param cmd: command sent to the plugin
         :return: None
-        '''
+        """
         self.isActive = False
         # this does not work on betas
         # Plugins.PluginName.plugin_name
@@ -209,23 +208,23 @@ class BasePlugin(object):
                 name=plugin.name).start()
 
     def initialize_and_terminate(self, name, cmd):
-        '''
+        """
         Initialize a plugin that is not yet running then immediately terminate
         :param name: name of the plugin to initialize
         :param cmd: command sent to the plugin
         :return: None
-        '''
+        """
         self.initialize_and_remain(name, cmd)
         os.kill(os.getpid(), 9)
 
     def initialize_beta(self, name, cmd, data):
-        '''
+        """
         Initialize a beta plugin and remain
         :param name: name of the beta plugin
         :param cmd: command sent to the beta
         :param data: a python object to pass on to the beta plugin
         :return: None
-        '''
+        """
         self.isActive = False
         # betas can only be initialized from their respective alphas
         import_str = 'Plugins.{_dir}.{f}'.format(_dir=self.name,
@@ -245,10 +244,10 @@ class BasePlugin(object):
     '''
     @property
     def config_obj(self):
-        '''
+        """
         Load the configuration data into a convenient dict
         :return: dict(config_dict)
-        '''
+        """
         try:
             # load the configuration pickle
             config_pickle_path = [os.getcwd(), 'tmp', 'configuration.p']
@@ -262,10 +261,10 @@ class BasePlugin(object):
 
     @property
     def frame_data(self):
-        '''
+        """
         Load the pickled dictionary of visual information produced by WatcherService
         :return: dict(frame_data)
-        '''
+        """
         frame_data_path = [os.getcwd(), 'tmp', 'frame_data.p']
         try:
             frame_data = pickle.load(open(os.path.join('', *frame_data_path), 'rb'))
@@ -286,13 +285,13 @@ class BasePlugin(object):
                     pre_buffer=None,
                     post_buffer=1,
                     max_dialogue=10):
-        '''
+        """
         Get user input via microphone
         :param pre_buffer: number of seconds to wait without sound before timeout
         :param post_buffer: number of seconds to wait after sound before tiemout
         :param max_dialogue: maximum number of seconds of sound to record before timeout
         :return: the user input as a string
-        '''
+        """
         # call the listener service and collect response
         signal_fname = self.config_obj.services['ListenerService']['input_filename']
         response_fname = self.config_obj.services['ListenerService']['output_filename']
@@ -313,10 +312,10 @@ class BasePlugin(object):
         return command
 
     def reset_threshold(self):
-        '''
+        """
         Reset the volume cutoff to separate noise from speech
         :return: None
-        '''
+        """
         signal_fname = self.config_obj.services['ListenerService']['input_filename']
         params_dict = {'reset_threshold': True}
         pickle.dump(params_dict, open(signal_fname, 'wb'))
@@ -325,12 +324,15 @@ class BasePlugin(object):
             continue
 
     def vocalize(self, text):
-        '''
+        """
         Synthesize and play speech from text
         :param text: the content to synthesize
         :return: None
-        '''
+        """
         signal_path = self.config_obj.services['SpeakerService']['input_filename']
+        # wait for a prior file to be processed if any exists
+        while os.path.isfile(signal_path):
+            continue
         with open(signal_path, 'w') as f:
             try:
                 f.write(text)
@@ -345,12 +347,13 @@ class BasePlugin(object):
     Webdriver and flask app integration
     -----------------------------------
     '''
+
     def generate_webdriver(self, options=None):
-        '''
+        """
         Produces a selenium webdriver  for the plugin to use
         :param options: a selenium.webdriver.ChromeOptions object to override default options
         :return: selenium.webdriver
-        '''
+        """
         CHROME_PROFILE_PATH = self.config_obj.environment_variables['Base']['CHROME_PROFILE_PATH']
         # use the actual chromedriver binary at /usr/local/bin/chromedriver
         CHROMEDRIVER_PATH = self.config_obj.environment_variables['Base']['CHROMEDRIVER_PATH']
@@ -388,6 +391,7 @@ class BasePlugin(object):
         return "{host}:{port}/{name}".format(host=_host,
                                              port=_port,
                                              name=self.name)
+
 
 '''
 ------------------------------------------

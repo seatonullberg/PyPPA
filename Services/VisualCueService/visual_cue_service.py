@@ -62,6 +62,9 @@ class VisualCueService(BaseService):
     def vocalize(self, text):
         # access the speaker service the long way around
         speaker_service_signal = self.config_obj.services['SpeakerService']['input_filename']
+        # wait for a prior file to be processed if any exists
+        while os.path.isfile(speaker_service_signal):
+            continue
         with open(speaker_service_signal, 'w') as f:
             f.write(text)
         while os.path.isfile(speaker_service_signal):
