@@ -8,7 +8,7 @@ from Services.ListenerService.listener_service import ListenerService
 from Services.SpeakerService.speaker_service import SpeakerService
 from Services.WatcherService.watcher_service import WatcherService
 from Services.VisualCueService.visual_cue_service import VisualCueService
-from generate_config import Configuration
+from Configuration import base
 from Plugins.SleepPlugin.sleep_plugin import SleepPlugin
 
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     asound.snd_lib_error_set_handler(c_error_handler)
 
     # make config first
-    o = Configuration()
+    o = base.Configuration()
     o.make()
 
     # initialize listener service in child process

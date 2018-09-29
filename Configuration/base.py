@@ -16,7 +16,7 @@ class Configuration(object):
 
     @property
     def configuration_fn(self):
-        return 'configuration.yaml'
+        return os.path.join(os.getcwd(), 'Configuration', 'configuration.yaml')
 
     @property
     def environment_fn(self):
@@ -102,7 +102,7 @@ class Configuration(object):
         plugins_dir = [os.getcwd(), 'Plugins']
         plugins_dir = os.path.join('', *plugins_dir)
         for name in os.listdir(plugins_dir):
-            if name == '__pycache__':
+            if name in ['__pycache__', 'base.py']:
                 continue
             else:
                 config['BLACKLIST'][name] = False
@@ -120,7 +120,7 @@ class Configuration(object):
         service_dir = [os.getcwd(), 'Services']
         service_dir = os.path.join('', *service_dir)
         for name in os.listdir(service_dir):
-            if name == '__pycache__':
+            if name in ['__pycache__', 'base.py']:
                 continue
             else:
                 config['BLACKLIST'][name] = False
@@ -230,6 +230,54 @@ class Configuration(object):
         pickle_path = [os.getcwd(), 'tmp', self.configuration_pickle_fn]
         pickle_path = os.path.join('', *pickle_path)
         pickle.dump(self, open(pickle_path, 'wb'))
+
+
+class AutoConfig(object):
+
+    def __init__(self, target_dict, is_environment_variable):
+        assert type(target_dict) == dict
+        assert type(is_environment_variable) == bool
+        self.target_dict = target_dict
+        self.is_environment_variable = is_environment_variable
+
+    @property
+    def package_name(self):
+        # name of the plugin or service which this autoconfig applies to
+        # based on file location
+        path = os.path.dirname(__file__)
+        name = os.path.basename(path)
+        return name
+
+    @property
+    def configuration_path(self):
+        filename = 'configuration.yaml'
+        path = os.path.dirname(__file__)
+        if not self.is_environment_variable:
+            path = os.path.join(path, filename)
+            return path
+        else:
+            path = os.path.dirname(path)
+            path = os.path.join(path, filename)
+            return path
+
+    def configure(self):
+        # iterate through target_dict to execute all desired functions
+        for k, v in self.target_dict:
+            if self.is_environment_variable:
+                # place the generated value in the configuration
+                ev_value = v()
+                self._modify_configuration(k, ev_value)
+            else:
+                # let the script run to modify the external resource
+                v()
+
+    def _modify_configuration(self, key, value):
+        # open the configuration and fill in entries
+        # only used when environment_variable=False
+        user_config = yaml.load(stream=open(self.configuration_path, 'r'))
+        current_value = user_config['ENVIRONMENT_VARIABLES'][key]
+        if current_value == '':
+            user_config['ENVIRONMENT_VARIABLES'][key] = value
 
 
 if __name__ == "__main__":
