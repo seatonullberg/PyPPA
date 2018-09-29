@@ -38,7 +38,7 @@ class AutoConfig(object):
                 ev_value = v()
                 self._modify_configuration(k, ev_value)
             else:
-                # let the script run to modify the resource
+                # let the script run to modify the external resource
                 v()
 
     def _modify_configuration(self, key, value):

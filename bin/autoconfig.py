@@ -3,6 +3,7 @@ This file is to remain in /bin so that the resources can be properly configured 
 '''
 
 import os
+import sys
 import stat
 from base_autoconfig import AutoConfig
 
@@ -22,15 +23,16 @@ def chromedriver():
 
 
 def python():
-    # properly install the packaged version of python
+    # make sure python has access to the dependencies
+    # sys.path.append(os.getcwd())
     pass
 
 
 if __name__ == "__main__":
     # initialize an AutoConfig object to modify the resources
     _dict = {'mimic': mimic,
-                   'chromedriver': chromedriver,
-                   'python3.6.5': python}
+             'chromedriver': chromedriver,
+             'python3.6.5': python}
     ac = AutoConfig(target_dict=_dict,
                     is_environment_variable=False)
     ac.configure()
