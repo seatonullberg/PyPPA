@@ -1,0 +1,1 @@
+Storage for temporary files. All (except this one) are deleted on exit.

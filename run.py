@@ -18,8 +18,9 @@ def cleanup():
     tmp_path = [os.getcwd(), 'tmp']
     tmp_path = os.path.join('', *tmp_path)
     for fname in os.listdir(tmp_path):
-        fpath = os.path.join(tmp_path, fname)
-        os.remove(fpath)
+        if fname != 'README.md':
+            fpath = os.path.join(tmp_path, fname)
+            os.remove(fpath)
 
 
 def alsa_error_handler(a,b,c,d,e):
