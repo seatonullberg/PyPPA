@@ -1,13 +1,13 @@
-from base_service import BaseService
 from queue import Queue
 import pickle
 from threading import Thread
 import cv2
 import face_recognition
 from facial_profile import FacialProfile
+from Services import base
 
 
-class WatcherService(BaseService):
+class WatcherService(base.Service):
 
     def __init__(self):
         # use queue to communicate with thread

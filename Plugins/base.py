@@ -10,7 +10,7 @@ import struct
 from selenium import webdriver
 
 
-class BasePlugin(object):
+class Plugin(object):
 
     def __init__(self, command_hook_dict, modifiers, name):
         self.COMMAND_HOOK_DICT = command_hook_dict
@@ -391,6 +391,33 @@ class BasePlugin(object):
         return "{host}:{port}/{name}".format(host=_host,
                                              port=_port,
                                              name=self.name)
+
+
+class BetaPlugin(Plugin):
+
+    def __init__(self, command_hook_dict, modifiers, name, alpha_name):
+        self.COMMAND_HOOK_DICT = command_hook_dict
+        self.MODIFIERS = modifiers
+        self.name = name
+        # store the alpha plugin's name
+        self.alpha_name = alpha_name
+        # the data passed by the alpha plugin
+        self.DATA = None
+        super().__init__(command_hook_dict=command_hook_dict,
+                         modifiers=modifiers,
+                         name=self.name)
+        # add exit context as a command for all
+        self.COMMAND_HOOK_DICT['exit_context'] = ['exit context']
+        self.MODIFIERS['exit_context'] = {}
+
+    def initialize(self, cmd=None, data=None):
+        self.DATA = data
+        self.make_active()
+        self.mainloop(cmd)
+
+    def exit_context(self, cmd=None):
+        self.pass_and_terminate(name=self.alpha_name,
+                                cmd=cmd)
 
 
 '''

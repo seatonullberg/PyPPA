@@ -1,8 +1,8 @@
 import multiprocessing
-from base_plugin import BasePlugin
+from Plugins import base
 
 
-class SleepPlugin(BasePlugin):
+class SleepPlugin(base.Plugin):
 
     def __init__(self):
         self.name = 'SleepPlugin'

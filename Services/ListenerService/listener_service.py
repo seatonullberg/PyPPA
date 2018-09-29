@@ -6,11 +6,11 @@ import os
 import numpy as np
 import copy
 import pickle
-from base_service import BaseService
+from Services import base
 
 
 # TODO: better handle tmp files
-class ListenerService(BaseService):
+class ListenerService(base.Service):
 
     def __init__(self):
         self.CHUNK = 2048

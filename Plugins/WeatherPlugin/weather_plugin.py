@@ -1,11 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
 import json
-from base_plugin import BasePlugin
+from Plugins import base
 
 
 # TODO: add 'forecast' premodifier
-class WeatherPlugin(BasePlugin):
+class WeatherPlugin(base.Plugin):
 
     def __init__(self):
         self.COMMAND_HOOK_DICT = {'check_weather': ['check the weather',

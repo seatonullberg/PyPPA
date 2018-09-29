@@ -1,13 +1,13 @@
-from base_beta import BaseBeta
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 import pyautogui
 from threading import Thread
 from queue import Queue
 import pickle
+from Plugins import base
 
 
-class NetflixSearchBeta(BaseBeta):
+class NetflixSearchBeta(base.BetaPlugin):
 
     def __init__(self):
         self.COMMAND_HOOK_DICT = {'search': ['search for', 'search'],

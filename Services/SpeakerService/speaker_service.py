@@ -1,13 +1,13 @@
-from base_service import BaseService
 from gtts import gTTS
 from pydub import AudioSegment
 from pyaudio import PyAudio
 import wave
 import os
 import subprocess
+from Services import base
 
 
-class SpeakerService(BaseService):
+class SpeakerService(base.Service):
     # there is no default behavior and no output file
     # output is through the speakers
 

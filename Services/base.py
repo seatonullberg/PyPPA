@@ -42,7 +42,7 @@ class Clock(object):
             return delta.total_seconds()
 
 
-class BaseService(object):
+class Service(object):
 
     def __init__(self,
                  name,

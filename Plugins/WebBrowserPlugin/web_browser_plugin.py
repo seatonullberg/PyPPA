@@ -1,12 +1,12 @@
 # TODO: Break into individual plugins instead of betas now that webdriver is integrated to base class
-from base_plugin import BasePlugin
 import selenium
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from Plugins import base
 
 
-class WebBrowserPlugin(BasePlugin):
+class WebBrowserPlugin(base.Plugin):
 
     def __init__(self):
         self.name = 'WebBrowserPlugin'

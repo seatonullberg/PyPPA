@@ -1,7 +1,7 @@
 import requests
 import time
 import json
-from base_plugin import BasePlugin
+from Plugins import base
 
 
 # TODO: add 'about' feature to get topical news
@@ -9,7 +9,7 @@ from base_plugin import BasePlugin
 # - add option to open the full article
 # - add optional full text read
 # - add toggle between articles
-class NewsPlugin(BasePlugin):
+class NewsPlugin(base.Plugin):
 
     def __init__(self):
         self.name = 'NewsPlugin'

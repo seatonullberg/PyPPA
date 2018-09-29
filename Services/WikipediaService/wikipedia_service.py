@@ -1,11 +1,11 @@
-from base_service import BaseService
 import wikipedia
 import numpy as np
 import re
 import os
+from Services import base
 
 
-class WikipediaService(BaseService):
+class WikipediaService(base.Service):
 
     def __init__(self):
         self.name = 'WikipediaService'

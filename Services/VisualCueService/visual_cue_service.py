@@ -1,11 +1,11 @@
 import datetime
-from base_service import BaseService
 from threading import Thread
 import pickle
 import os
+from Services import base
 
 
-class VisualCueService(BaseService):
+class VisualCueService(base.Service):
 
     def __init__(self):
         self.greeting_times = {}

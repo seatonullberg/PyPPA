@@ -1,9 +1,9 @@
 import imaplib
 import email
-from base_plugin import BasePlugin
+from Plugins import base
 
 
-class EmailPlugin(BasePlugin):
+class EmailPlugin(base.Plugin):
 
     def __init__(self):
         self.name = 'EmailPlugin'

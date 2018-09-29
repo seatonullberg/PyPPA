@@ -1,4 +1,4 @@
-from base_beta import BaseBeta
+from Plugins import base
 
 
 # ~ambitious TODO: build another beta that reads html
@@ -7,7 +7,7 @@ from base_beta import BaseBeta
 # - locate entry forms or search boxes
 # - find main text to vocalize if requested
 # -
-class GoogleSearchBeta(BaseBeta):
+class GoogleSearchBeta(base.BetaPlugin):
 
     def __init__(self):
         self.COMMAND_HOOK_DICT = {'search': ['search for', 'search'],

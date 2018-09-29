@@ -1,10 +1,10 @@
 import wikipedia
 import requests
 from bs4 import BeautifulSoup
-from base_plugin import BasePlugin
+from Plugins import base
 
 
-class TeacherPlugin(BasePlugin):
+class TeacherPlugin(base.Plugin):
 
     def __init__(self):
         self.name = 'TeacherPlugin'

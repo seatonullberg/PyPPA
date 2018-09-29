@@ -1,10 +1,10 @@
-from base_service import BaseService
 import praw
 import os
 import re
+from Services import base
 
 
-class RedditService(BaseService):
+class RedditService(base.Service):
 
     def __init__(self):
         self.name = 'RedditService'

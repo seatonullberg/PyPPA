@@ -1,8 +1,8 @@
 import pickle
-from base_service import BaseService
 from flask import Flask
 from threading import Thread
 import os
+from Services import base
 # i apologize for the gross flask initialization here
 # not sure how to fix
 app = Flask("FlaskService")
@@ -20,7 +20,7 @@ def test_method(name):
         return html
 
 
-class FlaskService(BaseService):
+class FlaskService(base.Service):
 
     def __init__(self,):
         self.name = 'FlaskService'
