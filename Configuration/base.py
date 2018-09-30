@@ -71,6 +71,7 @@ class Configuration(object):
         if os.path.isfile(self.yaml_path):
             self._read_yaml()
 
+        self._scan_base()
         self._scan_plugins()
         self._scan_services()
         self._set_port_map()
@@ -119,6 +120,22 @@ class Configuration(object):
         """
         with open(self.pickle_path, 'wb') as stream:
             pickle.dump(self, stream)
+
+    def _scan_base(self):
+        """
+        Sets the environment variables for the Base environment.txt file
+        """
+        base_path = os.path.join(self.working_path, self.environment_fn)
+        if 'Base' not in self._environment_variables:
+            self._environment_variables['Base'] = {}
+
+        with open(base_path, 'r') as stream:
+            environment_variables = [line.strip() for line in stream]
+
+        for var in environment_variables:
+            if var not in self._environment_variables['Base']:
+                self._environment_variables['Base'][var] = ''  # set blanks for unfilled environment variables
+        # Base environment variables do not get autoconfig
 
     def _scan_plugins(self):
         """
