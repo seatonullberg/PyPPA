@@ -2,9 +2,13 @@ import os
 import pickle
 import importlib
 import yaml
+import exceptions  # these are my custom exceptions
 
 
 class Configuration(object):
+    """
+    Refer to /Configuration/README.md for in depth documentation of this object
+    """
 
     def __init__(self):
         self._port_map = {}
@@ -79,9 +83,8 @@ class Configuration(object):
         self._write_pickle()
 
         if os.path.isfile(self.log_path):
-            # TODO
-            # make this a custom error
-            raise RuntimeError("The configuration is incomplete. Open {} to see details".format(self.log_path))
+            raise exceptions.ConfigurationError("The configuration is incomplete. "
+                                                "Open {} to see details".format(self.log_path))
 
     def _read_yaml(self):
         """
