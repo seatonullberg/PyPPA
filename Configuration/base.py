@@ -2,7 +2,8 @@ import os
 import pickle
 import importlib
 import yaml
-import exceptions  # these are my custom exceptions
+import exceptions  # custom exceptions
+from utils import string_utils  # custom string utility functions
 
 
 class Configuration(object):
@@ -225,7 +226,7 @@ class Configuration(object):
         for filename in os.listdir(plugin_path):
             if filename.endswith('beta.py'):
                 beta_name = filename.replace('.py', '')  # remove the .py to get the ClassName of the beta plugin
-                beta_name = self._snake_case_to_pascal_case(beta_name)
+                beta_name = string_utils.snake_case_to_pascal_case(beta_name)
                 self._plugins[package_name]['betas'][beta_name] = {}
                 self._set_command_hook_dict(package_name, filename)
                 self._set_modifiers(package_name, filename)
@@ -237,11 +238,11 @@ class Configuration(object):
         :param beta_filename: (str) name of the beta filename to retrieve from if provided
         """
         # define these to save line space
-        SNAKE_PLUGIN = self._pascal_case_to_snake_case(package_name)
+        SNAKE_PLUGIN = string_utils.pascal_case_to_snake_case(package_name)
         PASCAL_PLUGIN = package_name
         if beta_filename is not None:
             SNAKE_BETA = beta_filename.replace('.py', '')
-            PASCAL_BETA = self._snake_case_to_pascal_case(SNAKE_BETA)
+            PASCAL_BETA = string_utils.snake_case_to_pascal_case(SNAKE_BETA)
         else:
             SNAKE_BETA = None
             PASCAL_BETA = None
@@ -277,11 +278,11 @@ class Configuration(object):
         :param beta_filename: (str) name of the beta filename to retrieve from if provided
         """
         # define these to save line space
-        SNAKE_PLUGIN = self._pascal_case_to_snake_case(package_name)
+        SNAKE_PLUGIN = string_utils.pascal_case_to_snake_case(package_name)
         PASCAL_PLUGIN = package_name
         if beta_filename is not None:
             SNAKE_BETA = beta_filename.replace('.py', '')
-            PASCAL_BETA = self._snake_case_to_pascal_case(SNAKE_BETA)
+            PASCAL_BETA = string_utils.snake_case_to_pascal_case(SNAKE_BETA)
         else:
             SNAKE_BETA = None
             PASCAL_BETA = None
@@ -317,7 +318,7 @@ class Configuration(object):
         """
         # define these to save line space
         PASCAL_SERVICE = package_name
-        SNAKE_SERVICE = self._pascal_case_to_snake_case(PASCAL_SERVICE)
+        SNAKE_SERVICE = string_utils.pascal_case_to_snake_case(PASCAL_SERVICE)
 
         if PASCAL_SERVICE not in self._services:
             self._services[PASCAL_SERVICE] = {}
@@ -375,38 +376,6 @@ class Configuration(object):
         """
         if os.path.isfile(self.log_path):
             os.remove(self.log_path)
-
-    @staticmethod
-    def _snake_case_to_pascal_case(input_string):
-        """
-        Converts the input string from snake_case to PascalCase
-        :param input_string: (str) a snake_case string
-        :return: (str) a PascalCase string
-        """
-        input_list = input_string.split('_')
-        input_list = [i.capitalize() for i in input_list]
-        output = ''.join(input_list)
-        return output
-
-    @staticmethod
-    def _pascal_case_to_snake_case(input_string):
-        """
-        Converts the input string from PascalCase to snake_case
-        :param input_string: (str) a PascalCase string
-        :return: (str) a snake_case string
-        """
-        output_list = []
-        for i, char in enumerate(input_string):
-            if char.capitalize() == char:  # if the char is already capitalized
-                if i == 0:
-                    output_list.append(char.lower())  # the first char is only made lowercase
-                else:
-                    output_list.append('_')
-                    output_list.append(char.lower())  # other capital chars are prepended with an underscore
-            else:
-                output_list.append(char)
-        output = ''.join(output_list)
-        return output
 
 
 if __name__ == "__main__":
