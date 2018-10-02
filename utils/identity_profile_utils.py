@@ -62,3 +62,23 @@ def load_profile(name):
         profile = yaml.load(stream)
 
     return profile
+
+
+def load_all():
+    """
+    Loads all of the IdentityProfiles
+    :return profiles: (list) list of profiles
+    """
+    # generate path to IdentityProfiles
+    pyppa_path = os.path.dirname(__file__)
+    pyppa_path = os.path.dirname(pyppa_path)
+    identity_profiles_path = os.path.join(pyppa_path,
+                                          "IdentityProfiles")
+    identity_profiles = os.listdir(identity_profiles_path)
+    identity_profiles.remove("README.md")
+    # iterate through directory
+    profiles = []
+    for name in identity_profiles:
+        profile = load_profile(name)
+        profiles.append(profile)
+    return profiles

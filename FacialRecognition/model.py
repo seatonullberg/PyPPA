@@ -88,12 +88,14 @@ def _train(X, y):
                         early_stopping=True)
     clf.fit(X_pca, y)
 
-    # save classifier to pickle file
+    # generate path into FacialRecognition/
     pyppa_path = os.path.dirname(__file__)
     pyppa_path = os.path.dirname(pyppa_path)
     pickle_path = os.path.join(pyppa_path,
                                "FacialRecognition",
                                "{}")
+
+    # save classifier to pickle file
     with open(pickle_path.format("model.p"), 'wb') as stream:
         pickle.dump(clf, stream)
 
@@ -104,13 +106,14 @@ def _train(X, y):
 
 class FacialRecognitionModel(object):
     """
-    Wraps the MLPClassifier to recognize the identity of faces in a frame of video
+    Wraps the MLPClassifier and PCA kernel to recognize the identity of a face in a frame
     """
 
     def __init__(self, model=None, pca=None):
         """
-        Loads a pretrained model or uses one passed in
+        Loads a pretrained model/kernel or uses one passed in
         :param model: alternative classifier object
+        :param pca: alternative PCA kernel
         """
         # process args
         self.model = None
@@ -128,14 +131,9 @@ class FacialRecognitionModel(object):
             self.pca = _pca
 
         # load all of the identity profiles for quick recall
-        pyppa_path = os.path.dirname(__file__)
-        pyppa_path = os.path.dirname(pyppa_path)
-        identity_profiles_path = os.path.join(pyppa_path, "IdentityProfiles")
-        names = os.listdir(identity_profiles_path)
-        names.remove('README.md')
+        profiles = identity_profile_utils.load_all()
         profile_dict = {}  # face_id keys and profile values
-        for name in names:
-            profile = identity_profile_utils.load_profile(name)
+        for profile in profiles:
             profile_dict[profile['face_id']] = profile
 
         self.profile_dict = profile_dict

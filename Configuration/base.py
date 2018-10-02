@@ -149,6 +149,7 @@ class Configuration(object):
         plugin_pkgs = os.listdir(plugins_path)
         plugin_pkgs = [pkg for pkg in plugin_pkgs if pkg not in self.blacklist]
         plugin_pkgs.remove('base.py')
+        plugin_pkgs.remove('README.md')
         plugin_pkgs.remove('__pycache__')
         for pkg in plugin_pkgs:
             self._set_environment_variables(pkg)
@@ -164,6 +165,7 @@ class Configuration(object):
         service_pkgs = os.listdir(services_path)
         service_pkgs = [pkg for pkg in service_pkgs if pkg not in self.blacklist]
         service_pkgs.remove('base.py')
+        service_pkgs.remove('README.md.py')
         service_pkgs.remove('__pycache__')
         for pkg in service_pkgs:
             self._set_environment_variables(pkg)
