@@ -12,3 +12,5 @@ gtts
 cv2
 face_recognition
 yaml
+scipy
+sklearn
