@@ -41,7 +41,8 @@ def process(input_path):
             dir_name = os.path.basename(input_path)
             outdir = os.path.join(pyppa_dir,
                                   "IdentityProfiles",
-                                  dir_name)
+                                  dir_name,
+                                  "images")
             # make dir if not exists
             if not os.path.isdir(outdir):
                 os.makedirs(outdir)

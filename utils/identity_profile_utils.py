@@ -1,5 +1,6 @@
 import os
 import yaml
+import pickle
 
 
 def new_profile(name):
@@ -64,7 +65,7 @@ def load_profile(name):
     return profile
 
 
-def load_all():
+def load_all_profiles():
     """
     Loads all of the IdentityProfiles
     :return profiles: (list) list of profiles
@@ -76,9 +77,60 @@ def load_all():
                                           "IdentityProfiles")
     identity_profiles = os.listdir(identity_profiles_path)
     identity_profiles.remove("README.md")
+
     # iterate through directory
     profiles = []
     for name in identity_profiles:
         profile = load_profile(name)
         profiles.append(profile)
+
     return profiles
+
+
+def load_submatrix(name):
+    """
+    Loads the KDE by name
+    :param name: (str) name of the associated profile
+    :return: (numpy.ndarray)
+    """
+    # spaces are converted to underscores
+    # Seaton_Ullberg is processed just the same as Seaton Ullberg
+    name = name.replace(' ', '_')
+
+    # generate path to profile
+    pyppa_path = os.path.dirname(__file__)
+    pyppa_path = os.path.dirname(pyppa_path)
+    pickle_path = os.path.join(pyppa_path,
+                               "IdentityProfiles",
+                               name,
+                               "submatrix.p")
+
+    # load kde
+    with open(pickle_path, 'rb') as stream:
+        kde = pickle.load(stream)
+
+    return kde
+
+
+def load_all_kdes():
+    """
+    Loads all of the KDEs
+    :return kdes: (dict) face_id keys and kde values
+    """
+    # generate path to IdentityProfiles
+    pyppa_path = os.path.dirname(__file__)
+    pyppa_path = os.path.dirname(pyppa_path)
+    identity_profiles_path = os.path.join(pyppa_path,
+                                          "IdentityProfiles")
+    identity_profiles = os.listdir(identity_profiles_path)
+    identity_profiles.remove("README.md")
+
+    # iterate through directory
+    kdes = {}
+    for name in identity_profiles:
+        profile = load_profile(name)
+        face_id = profile['face_id']
+        kde = load_submatrix(name)
+        kdes[face_id] = kde
+
+    return kdes

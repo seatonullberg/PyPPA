@@ -3,9 +3,10 @@ import pickle
 import cv2
 import numpy as np
 from scipy.misc import imread
+from scipy.spatial.distance import cdist
 from utils import identity_profile_utils
 from sklearn.decomposition import PCA
-from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import StandardScaler
 # TODO: add evaluation function to determine model performance
 
 
@@ -13,31 +14,41 @@ def build():
     """
     Creates a new facial recognition model and saves it as model.p in /FacialRecognition/
     """
-    X, y = _load_images()
-    _train(X, y)
+    x, y = _load_images()
+    _train(x, y)
 
 
 def load():
     """
-    Loads the pickled facial recognition model and PCA kernel
-    :return: (sklearn.neural_network.MLPClassifier), (sklearn.decomposition.PCA)
+    Loads the pickled tSNE, PCA, and KDE kernels
+    :return: pca (sklearn.decomposition.PCA),
+             normlaizer (sklearn.preprocessing.StandardScaler)
+             submatrices (dict) - enumerates submatrix of each profile by face_id
     """
     local_path = os.path.dirname(__file__)
     pickle_path = os.path.join(local_path, "{}")
-    with open(pickle_path.format("model.p"), 'rb') as stream:
-        model = pickle.load(stream)
+
+    # load pca
     with open(pickle_path.format("pca.p"), 'rb') as stream:
         pca = pickle.load(stream)
-    return model, pca
+    # load normalizer
+    with open(pickle_path.format("normalizer.p"), 'rb') as stream:
+        normalizer = pickle.load(stream)
+    # load submatrices
+    submatrices = identity_profile_utils.load_all_kdes()
+
+    return pca, normalizer, submatrices
 
 
 def _load_images():
     """
     Loads images from /IdentityProfiles/ into an array with class labels
-    :return X, y: (numpy.ndarray) array of all images, (numpy.ndarray) array of class labels
+    :return: x (numpy.ndarray) array of all images,
+             y (numpy.ndarray) array of class labels,
+             z (dict) enumerates all images by face_id
     """
-    _x = []  # list of flattened images
-    _y = []  # list of face_ids
+    _x = []  # list of all flattened images
+    _y = {}  # dict {face_id: [flattened_iamge,]}
 
     # generate path to profiles
     pyppa_path = os.path.dirname(__file__)
@@ -51,43 +62,28 @@ def _load_images():
     for profile_dir in profile_dirs:
         profile = identity_profile_utils.load_profile(profile_dir)
         face_id = profile['face_id']
-        image_files = os.listdir(os.path.join(identity_profiles_path, profile_dir))
-        image_files.remove("profile.yaml")
+        image_files = os.listdir(os.path.join(identity_profiles_path, profile_dir, "images"))
+        _y[face_id] = []
         for image_file in image_files:
-            image_path = os.path.join(profile_dir, image_file)
+            image_path = os.path.join(profile_dir, "images", image_file)
             image = imread(image_path)
             image = image.flatten()
-            print(image.shape)
             _x.append(image)
-            _y.append(face_id)
+            _y[face_id].append(image)
 
-    X = np.vstack(_x)  # array of all flattened images
-    y = np.array(_y)  # array of corresponding image classes (face_ids)
+    x = np.vstack(_x)  # array of all flattened images
+    y = {k: np.vstack(v) for k, v in _y.items()}  # enumeration of sub arrays
 
-    return X, y
+    return x, y
 
 
-def _train(X, y):
+def _train(x, y):
     """
     Trains and saves a NeuralNetwork classifier on the images
     - follows the Eigenfaces implementation
-    :param X: (numpy.ndarray) array of all flattened images
-    :param y: (numpy.ndarray) array of corresponding class labels
+    :param x: (numpy.ndarray) array of all flattened images
+    :param y: (dict) an enumeration of subarrays by face_id
     """
-    # Compute a PCA
-    pca = PCA(whiten=True)
-    pca.fit(X)
-
-    # apply PCA transformation
-    X_pca = pca.transform(X)
-
-    # train a neural network classifier
-    clf = MLPClassifier(hidden_layer_sizes=(1024,),
-                        batch_size=256,
-                        verbose=True,
-                        early_stopping=True)
-    clf.fit(X_pca, y)
-
     # generate path into FacialRecognition/
     pyppa_path = os.path.dirname(__file__)
     pyppa_path = os.path.dirname(pyppa_path)
@@ -95,43 +91,72 @@ def _train(X, y):
                                "FacialRecognition",
                                "{}")
 
-    # save classifier to pickle file
-    with open(pickle_path.format("model.p"), 'wb') as stream:
-        pickle.dump(clf, stream)
+    # Normalization
+    normalizer = StandardScaler()
+    normalizer.fit(x)
+    x = normalizer.transform(x)
+    # save Normalizer to pickle file
+    with open(pickle_path.format("normalizer.p"), 'wb') as stream:
+        pickle.dump(normalizer, stream)
 
+    # PCA
+    pca = PCA()
+    pca.fit(x)
     # save PCA kernel to pickle file
     with open(pickle_path.format("pca.p"), 'wb') as stream:
         pickle.dump(pca, stream)
 
+    # Save dimensional reduction of each submatrix
+    identity_profiles_path = os.path.join(pyppa_path, "IdentityProfiles")
+    identity_profiles = os.listdir(identity_profiles_path)
+    identity_profiles.remove('README.md')
+    for name in identity_profiles:
+        profile = identity_profile_utils.load_profile(name)
+        face_id = profile['face_id']
+        submatrix = y[face_id]
+        submatrix = normalizer.transform(submatrix)
+        submatrix = pca.transform(submatrix)
+        pickle_path = os.path.join(identity_profiles_path,
+                                   name,
+                                   "submatrix.p")
+        with open(pickle_path, 'wb') as stream:
+            pickle.dump(submatrix, stream)
+
 
 class FacialRecognitionModel(object):
     """
-    Wraps the MLPClassifier and PCA kernel to recognize the identity of a face in a frame
+    Wraps the tSNE, PCA, and KDE kernels to recognize the identity of a face in a frame
     """
 
-    def __init__(self, model=None, pca=None):
+    def __init__(self, pca=None, normalizer=None, submatrices=None):
         """
         Loads a pretrained model/kernel or uses one passed in
-        :param model: alternative classifier object
         :param pca: alternative PCA kernel
+        :param normalizer: alternative Normalization kernel
+        :param submatrices: alternative dict of submatrices
         """
         # process args
-        self.model = None
         self.pca = None
+        self.normalizer = None
+        self.submatrices = None
 
-        if model is not None:
-            self.model = model
         if pca is not None:
             self.pca = pca
+        if normalizer is not None:
+            self.normalizer = normalizer
+        if submatrices is not None:
+            self.submatrices = submatrices
 
-        _model, _pca = load()
-        if self.model is None:
-            self.model = _model
+        _pca, _normalizer, _submatrices = load()
         if self.pca is None:
             self.pca = _pca
+        if self.normalizer is None:
+            self.normalizer = _normalizer
+        if self.submatrices is None:
+            self.submatrices = _submatrices
 
         # load all of the identity profiles for quick recall
-        profiles = identity_profile_utils.load_all()
+        profiles = identity_profile_utils.load_all_profiles()
         profile_dict = {}  # face_id keys and profile values
         for profile in profiles:
             profile_dict[profile['face_id']] = profile
@@ -144,16 +169,44 @@ class FacialRecognitionModel(object):
         - input array should contain only a single face
         :param frame: (numpy.ndarray)
         :return: (str) name - name of detected identity
-                 (float) prob - probalility of prediction
+                 (float) highest_prob - probalility of prediction
         """
         frame = self._preprocess(frame)
-        pred_face_id = self.model.predict(frame)
-        assert len(pred_face_id) == 1  # if this fails the frame contains multiple faces
-        pred_face_id = pred_face_id[0]
-        prob = self.model.predict_proba(frame)
-        prob = prob[0][0]
-        name = self.profile_dict[pred_face_id]['name']
-        return name, prob
+        frame = frame[0]  # TODO: make this unnecessary
+        lowest_distance = np.inf
+        name = None
+        all_distances = []
+        for k, v in self.submatrices.items():
+            # calculate distance between all pairs of points in submatrix to use as n-dimensional boundary radius
+            radius = cdist(v, v, 'euclidean')
+            radius = radius[radius != 0]  # remove zeros to get accurate mean squared distances
+            radius = np.mean(np.sqrt(radius**2))
+            radius = radius*0.80  # arbitrary tightening factor
+
+            centroid = np.mean(v, axis=0)  # calculate centroid array
+
+            # calculate distance from centroid
+            distance = np.sqrt((frame - centroid)**2)  # rms distance
+            distance = distance*self.pca.explained_variance_ratio_  # weight rms by explained variance
+            distance = np.sum(distance)
+            all_distances.append(distance)
+
+            # determine if new class is better fit
+            if distance < lowest_distance:
+                lowest_distance = distance
+                # determine if frame is within boundary radius
+                # outside of the boundary radius is assumed to be an unknown
+                if self._within_boundary(point=frame, center=centroid, radius=radius):
+                    name = self.profile_dict[k]['name']
+                else:
+                    name = "Unknown"
+
+        # calculate confidence rating
+        all_distances.remove(lowest_distance)  # use max of this to find second lowest
+        sec_lowest_distance = min(all_distances)
+        confidence = (sec_lowest_distance/lowest_distance)
+        confidence = np.log(confidence)
+        return name, confidence
 
     def _preprocess(self, frame):
         """
@@ -167,5 +220,22 @@ class FacialRecognitionModel(object):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         frame = frame.flatten()
         frame = frame.reshape(1, -1)
+        frame = self.normalizer.transform(frame)
         frame = self.pca.transform(frame)
         return frame
+
+    @staticmethod
+    def _within_boundary(point, center, radius):
+        """
+        Determines if point is within boundary radius of center
+        :param point: (numpy.ndarray) point to evaluate
+        :param center: (numpy.ndarray) central point to calculate sphere with
+        :param radius: (float) boundary radius to use
+        :return: (bool)
+        """
+        dist = np.sum((point - center)**2)
+        if dist < radius**2:
+            return True
+        else:
+            return False
+
