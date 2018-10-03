@@ -161,9 +161,32 @@ class FacialRecognitionModel(object):
         for profile in profiles:
             profile_dict[profile['face_id']] = profile
 
+        # load the facial cascade file
+        casc_path = "/home/seaton/repos/PyPPA/bin/frontal_face_cascade.xml"
+        self.cascade_classifier = cv2.CascadeClassifier(casc_path)
+
         self.profile_dict = profile_dict
 
-    def analyze(self, frame):
+    def analyze(self, frame, queue=None):
+        """
+        Extracts face locations and identities from a video frame
+        :param frame: (numpy.ndarray) - video frame
+        :param queue: (queue.Queue) - optional for threading
+        :return frame_data: (list) list of dicts of information corresponding to located faces
+        """
+        frames, locations = self._extract_faces(frame)
+        frame_data = []
+        for f, l in zip(frames, locations):
+            name, confidence = self._analyze(f)
+            frame_data.append({'name': name,
+                               'confidence': confidence,
+                               'location': l})
+        if queue is None:
+            return frame_data
+        else:
+            queue.put(frame_data)
+
+    def _analyze(self, frame):
         """
         Applies the facial recognition model to an image array
         - input array should contain only a single face
@@ -217,12 +240,32 @@ class FacialRecognitionModel(object):
         frame = cv2.resize(frame,
                            dsize=(100, 100),
                            interpolation=cv2.INTER_CUBIC)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # make grayscale
         frame = frame.flatten()
         frame = frame.reshape(1, -1)
         frame = self.normalizer.transform(frame)
         frame = self.pca.transform(frame)
         return frame
+
+    def _extract_faces(self, frame):
+        """
+        Extracts the area around faces in a raw video frame
+        :param frame: (numpy.ndarray)
+        :return: (list) - smaller frames containing detected faces
+        """
+        faces = self.cascade_classifier.detectMultiScale(
+            frame,
+            scaleFactor=1.1,
+            minNeighbors=20,
+            minSize=(100, 100)
+        )
+        frames = []
+        locations = []
+        for (x, y, w, h) in faces:
+            crop = frame[y:y+h, x:x+w]  # crop to area around face
+            frames.append(crop)
+            locations.append((x, y, w, h))
+        return frames, locations
 
     @staticmethod
     def _within_boundary(point, center, radius):
@@ -238,4 +281,3 @@ class FacialRecognitionModel(object):
             return True
         else:
             return False
-
