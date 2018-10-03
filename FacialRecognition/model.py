@@ -7,6 +7,7 @@ from scipy.spatial.distance import cdist
 from utils import identity_profile_utils
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from threading import Thread
 # TODO: add evaluation function to determine model performance
 
 
@@ -123,19 +124,23 @@ def _train(x, y):
             pickle.dump(submatrix, stream)
 
 
-class FacialRecognitionModel(object):
+class FacialRecognitionModel(Thread):
     """
-    Wraps the tSNE, PCA, and KDE kernels to recognize the identity of a face in a frame
+    Wraps the tSNE, PCA, and KDE kernels to recognize the identity of faces in a frame
     """
 
-    def __init__(self, pca=None, normalizer=None, submatrices=None):
+    def __init__(self, queue, pca=None, normalizer=None, submatrices=None):
         """
         Loads a pretrained model/kernel or uses one passed in
+        :param queue: (utils.parallelization_utils.TwoWayQueue) enable two-way data transfer
         :param pca: alternative PCA kernel
         :param normalizer: alternative Normalization kernel
         :param submatrices: alternative dict of submatrices
         """
+        super().__init__()
+
         # process args
+        self.queue = queue
         self.pca = None
         self.normalizer = None
         self.submatrices = None
@@ -167,24 +172,33 @@ class FacialRecognitionModel(object):
 
         self.profile_dict = profile_dict
 
-    def analyze(self, frame, queue=None):
+    def run(self):
+        """
+        Overrides base method to call analyze directly
+        """
+        self.analyze()
+
+    def analyze(self):
         """
         Extracts face locations and identities from a video frame
-        :param frame: (numpy.ndarray) - video frame
-        :param queue: (queue.Queue) - optional for threading
         :return frame_data: (list) list of dicts of information corresponding to located faces
         """
-        frames, locations = self._extract_faces(frame)
-        frame_data = []
-        for f, l in zip(frames, locations):
-            name, confidence = self._analyze(f)
-            frame_data.append({'name': name,
-                               'confidence': confidence,
-                               'location': l})
-        if queue is None:
-            return frame_data
-        else:
-            queue.put(frame_data)
+        while True:
+            # check queue for a new frame
+            if self.queue.server_queue.empty():
+                continue
+            else:
+                frame = self.queue.server_queue.get()
+
+            # extract and process faces
+            frames, locations = self._extract_faces(frame)
+            frame_data = []
+            for f, l in zip(frames, locations):
+                name, confidence = self._analyze(f)
+                frame_data.append({'name': name,
+                                   'confidence': confidence,
+                                   'location': l})
+                self.queue.client_queue.put(frame_data)
 
     def _analyze(self, frame):
         """
@@ -195,7 +209,6 @@ class FacialRecognitionModel(object):
                  (float) highest_prob - probalility of prediction
         """
         frame = self._preprocess(frame)
-        frame = frame[0]  # TODO: make this unnecessary
         lowest_distance = np.inf
         name = None
         all_distances = []
@@ -240,7 +253,7 @@ class FacialRecognitionModel(object):
         frame = cv2.resize(frame,
                            dsize=(100, 100),
                            interpolation=cv2.INTER_CUBIC)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # make grayscale
+        # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # make grayscale
         frame = frame.flatten()
         frame = frame.reshape(1, -1)
         frame = self.normalizer.transform(frame)
@@ -253,8 +266,9 @@ class FacialRecognitionModel(object):
         :param frame: (numpy.ndarray)
         :return: (list) - smaller frames containing detected faces
         """
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # make grayscale
         faces = self.cascade_classifier.detectMultiScale(
-            frame,
+            image=frame,
             scaleFactor=1.1,
             minNeighbors=20,
             minSize=(100, 100)
