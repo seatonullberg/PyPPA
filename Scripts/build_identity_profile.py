@@ -24,6 +24,7 @@ import argparse
 import os
 import cv2
 from utils import identity_profile_utils
+from utils import path_utils
 from FacialRecognition import model
 
 
@@ -32,10 +33,9 @@ def preprocess(input_path):
     Preprocesses images in input_path for facial recognition
     :param input_path: (str) absolute path to a directory of facial images
     """
+    local_paths = path_utils.LocalPaths()
     # load cascade file
-    pyppa_dir = os.path.dirname(__file__)
-    pyppa_dir = os.path.dirname(pyppa_dir)
-    casc_path = os.path.join(pyppa_dir, "bin", "frontal_face_cascade.xml")
+    casc_path = os.path.join(local_paths.bin, "frontal_face_cascade.xml")
     face_cascade = cv2.CascadeClassifier(casc_path)
 
     # iterate through images
@@ -64,8 +64,7 @@ def preprocess(input_path):
 
             # generate path in /IdentityProfiles/
             dir_name = os.path.basename(input_path)
-            outdir = os.path.join(pyppa_dir,
-                                  "IdentityProfiles",
+            outdir = os.path.join(local_paths.identity_profiles,
                                   dir_name,
                                   "images")
             # make dir if not exists

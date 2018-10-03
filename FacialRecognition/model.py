@@ -4,10 +4,11 @@ import cv2
 import numpy as np
 from scipy.misc import imread
 from scipy.spatial.distance import cdist
-from utils import identity_profile_utils
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from threading import Thread
+from utils import identity_profile_utils
+from utils import path_utils
 # TODO: add evaluation function to determine model performance
 
 
@@ -26,8 +27,8 @@ def load():
              normlaizer (sklearn.preprocessing.StandardScaler)
              submatrices (dict) - enumerates submatrix of each profile by face_id
     """
-    local_path = os.path.dirname(__file__)
-    pickle_path = os.path.join(local_path, "{}")
+    local_paths = path_utils.LocalPaths()
+    pickle_path = os.path.join(local_paths.facial_recognition, "{}")
 
     # load pca
     with open(pickle_path.format("pca.p"), 'rb') as stream:
@@ -52,21 +53,22 @@ def _load_images():
     _y = {}  # dict {face_id: [flattened_iamge,]}
 
     # generate path to profiles
-    pyppa_path = os.path.dirname(__file__)
-    pyppa_path = os.path.dirname(pyppa_path)
-    identity_profiles_path = os.path.join(pyppa_path, "IdentityProfiles")
-    profile_dirs = os.listdir(identity_profiles_path)
+    local_paths = path_utils.LocalPaths()
+    profile_dirs = os.listdir(local_paths.identity_profiles)
     profile_dirs.remove("README.md")
-    profile_dirs = [os.path.join(identity_profiles_path, pds) for pds in profile_dirs]
+    profile_dirs = [os.path.join(local_paths.identity_profiles, pds) for pds in profile_dirs]
 
     # iterate over profiles
     for profile_dir in profile_dirs:
         profile = identity_profile_utils.load_profile(profile_dir)
         face_id = profile['face_id']
-        image_files = os.listdir(os.path.join(identity_profiles_path, profile_dir, "images"))
+        images_path = os.path.join(local_paths.identity_profiles,
+                                   profile_dir,
+                                   "images")
+        image_files = os.listdir(images_path)
         _y[face_id] = []
         for image_file in image_files:
-            image_path = os.path.join(profile_dir, "images", image_file)
+            image_path = os.path.join(images_path, image_file)
             image = imread(image_path)
             image = image.flatten()
             _x.append(image)
@@ -86,11 +88,8 @@ def _train(x, y):
     :param y: (dict) an enumeration of subarrays by face_id
     """
     # generate path into FacialRecognition/
-    pyppa_path = os.path.dirname(__file__)
-    pyppa_path = os.path.dirname(pyppa_path)
-    pickle_path = os.path.join(pyppa_path,
-                               "FacialRecognition",
-                               "{}")
+    local_paths = path_utils.LocalPaths()
+    pickle_path = os.path.join(local_paths.facial_recognition, "{}")
 
     # Normalization
     normalizer = StandardScaler()
@@ -108,8 +107,7 @@ def _train(x, y):
         pickle.dump(pca, stream)
 
     # Save dimensional reduction of each submatrix
-    identity_profiles_path = os.path.join(pyppa_path, "IdentityProfiles")
-    identity_profiles = os.listdir(identity_profiles_path)
+    identity_profiles = os.listdir(local_paths.identity_profiles)
     identity_profiles.remove('README.md')
     for name in identity_profiles:
         profile = identity_profile_utils.load_profile(name)
@@ -117,7 +115,7 @@ def _train(x, y):
         submatrix = y[face_id]
         submatrix = normalizer.transform(submatrix)
         submatrix = pca.transform(submatrix)
-        pickle_path = os.path.join(identity_profiles_path,
+        pickle_path = os.path.join(local_paths.identity_profiles,
                                    name,
                                    "submatrix.p")
         with open(pickle_path, 'wb') as stream:
@@ -162,15 +160,12 @@ class FacialRecognitionModel(Thread):
 
         # load all of the identity profiles for quick recall
         profiles = identity_profile_utils.load_all_profiles()
-        profile_dict = {}  # face_id keys and profile values
-        for profile in profiles:
-            profile_dict[profile['face_id']] = profile
+        self.profile_dict = {p['face_id']: p for p in profiles}  # face_id keys and profile values
 
         # load the facial cascade file
-        casc_path = "/home/seaton/repos/PyPPA/bin/frontal_face_cascade.xml"
+        self.local_paths = path_utils.LocalPaths()
+        casc_path = os.path.join(self.local_paths.bin, "frontal_face_cascade.xml")
         self.cascade_classifier = cv2.CascadeClassifier(casc_path)
-
-        self.profile_dict = profile_dict
 
     def run(self):
         """
