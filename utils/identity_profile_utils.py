@@ -1,6 +1,7 @@
 import os
 import yaml
 import pickle
+from utils import path_utils  # TODO
 
 
 def new_profile(name):
@@ -81,9 +82,9 @@ def load_all_profiles():
     return profiles
 
 
-def load_submatrix(name):
+def load_face_descriptor(name):
     """
-    Loads the KDE by name
+    Loads the face_descriptor by name from pickle file
     :param name: (str) name of the associated profile
     :return: (numpy.ndarray)
     """
@@ -97,19 +98,19 @@ def load_submatrix(name):
     pickle_path = os.path.join(pyppa_path,
                                "IdentityProfiles",
                                name,
-                               "submatrix.p")
+                               "face_descriptor.p")
 
-    # load kde
+    # load face_descriptor from pickle
     with open(pickle_path, 'rb') as stream:
-        kde = pickle.load(stream)
+        face_descriptor = pickle.load(stream)
 
-    return kde
+    return face_descriptor
 
 
-def load_all_kdes():
+def load_all_face_descriptors():
     """
-    Loads all of the KDEs
-    :return kdes: (dict) face_id keys and kde values
+    Loads all of the face_descriptors
+    :return kdes: (dict) name keys and face_descriptor values
     """
     # generate path to IdentityProfiles
     pyppa_path = os.path.dirname(__file__)
@@ -120,11 +121,11 @@ def load_all_kdes():
     identity_profiles.remove("README.md")
 
     # iterate through directory
-    kdes = {}
+    face_descriptors = {}
     for name in identity_profiles:
         profile = load_profile(name)
-        face_id = profile['face_id']
-        kde = load_submatrix(name)
-        kdes[face_id] = kde
+        name = profile['name']
+        descriptor = load_face_descriptor(name)
+        face_descriptors[name] = descriptor
 
-    return kdes
+    return face_descriptors
