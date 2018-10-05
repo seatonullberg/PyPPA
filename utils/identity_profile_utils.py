@@ -23,14 +23,8 @@ def new_profile(name):
     if not os.path.exists(profile_path):
         os.makedirs(profile_path)
 
-    # generate face_id for profile
-    entries = os.listdir(identity_profiles_path)
-    entries.remove("README.md")
-    face_id = len(entries)
-
     # collect information in dict
-    to_yaml = {'name': name,
-               'face_id': face_id}
+    to_yaml = {'name': name}
 
     # write the yaml file
     yaml_path = os.path.join(profile_path, "profile.yaml")
