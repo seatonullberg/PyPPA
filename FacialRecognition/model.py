@@ -1,18 +1,17 @@
 import dlib
 import os
-import threading
 import numpy as np
-
+from multiprocessing import Process
 from utils import path_utils
 from utils import identity_profile_utils
 
 
-class FacialRecognitionModel(threading.Thread):
+class FacialRecognitionModel(Process):
     """
     Uses precalculated facial embeddings to recognize
     the identity of faces in a frame of video
     """
-    def __init__(self, server_queue, client_queue):
+    def __init__(self, queue):
         """
         Loads the pretrained objects
         :param queue: (utils.parallelization_utils.TwoWayQueue) enable two way communication
@@ -22,8 +21,7 @@ class FacialRecognitionModel(threading.Thread):
         # load local paths for convenience
         self.local_paths = path_utils.LocalPaths()
         # process args
-        self.server_queue = server_queue
-        self.client_queue = client_queue
+        self.queue = queue
         # load all the facial descriptors
         self.trained_facial_descriptors = identity_profile_utils.load_all_face_descriptors()
         # load the dlib pretrained models
@@ -40,14 +38,14 @@ class FacialRecognitionModel(threading.Thread):
         """
         while True:
             # check queue for a new frame
-            if len(self.server_queue) == 0:
+            if self.queue.server_empty():
                 continue
             else:
-                frame = self.server_queue.popleft()
+                frame = self.queue.server_get()
 
             # extract and process faces
             frame_data = []
-            detections = self.detector(frame, 1)
+            detections = self.detector(frame)
             for det in detections:
                 shape = self.shape_predictor(frame, det)
                 face_descriptor = self.face_recognition_model.compute_face_descriptor(frame, shape)
@@ -69,4 +67,4 @@ class FacialRecognitionModel(threading.Thread):
                         'location': location}
                 frame_data.append(data)
             # lastly, put the data back in the queue
-            self.client_queue.append(frame_data)
+            self.queue.client_put(frame_data)

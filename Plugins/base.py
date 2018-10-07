@@ -8,6 +8,7 @@ from threading import Thread
 import struct
 from selenium import webdriver
 from utils import path_utils
+from utils import string_utils
 
 
 class Plugin(object):
@@ -84,6 +85,15 @@ class Plugin(object):
     # PUBLIC METHODS #
     ##################
 
+    def initialize(self, cmd=None):
+        """
+        Starts Plugin operation
+        - should only be called through one of the pass or initialize methods
+        :param cmd: (Command) pass through to run a command directly on init
+        """
+        self._make_active()
+        self._mainloop(cmd)
+
     def accepts_command(self, command):
         """
         Checks whether or not the plugin accepts a Command object
@@ -110,30 +120,71 @@ class Plugin(object):
 
         return accept
 
-    def pass_and_remain(self):
+    def pass_and_remain(self, name, cmd=None):
         """
         Sends message to make another Plugin active while remaining functional in background
+        :param name: (str) name of the Plugin to initialize
+        :param cmd: (Command) command to send to plugin
         """
+        self._is_active = False
+        message_str = "{}${}".format(name, cmd)
+        self.send_queue.put(message_str)
 
-    def pass_and_terminate(self):
+    def pass_and_terminate(self, name, cmd=None):
         """
         Sends message to make another Plugin active then ceases functionality
+        :param name: (str) name of the Plugin to initialize
+        :param cmd: (Command) command to send to plugin
         """
+        self.pass_and_remain(name, cmd)
+        self.send_queue.put('quit')
+        while not self.send_queue.empty():
+            continue
+        os.kill(os.getpid(), 9)
 
-    def initialize_and_remain(self):
+    # TODO: initialize methods should be private
+    # TODO: the pass methods should check if the name is an existing process or not
+    # TODO: pass can call initialize if necessary
+    def initialize_and_remain(self, name, cmd=None):
         """
         Initializes a new Plugin while remaining functional in background
+        :param name: (str) name of plugin to initialize
+        :param cmd: (Command) command to initialize with
         """
+        self._is_active = False
+        import_str = "{}.{}.{}".format("Plugins",
+                                       name,
+                                       string_utils.pascal_case_to_snake_case(name))
+        module = importlib.import_module(import_str)
+        plugin = getattr(module, name)
+        plugin = plugin()
+        Process(target=plugin.initialize, args=(cmd,), name=plugin.name).start()
 
-    def initialize_and_terminate(self):
+    def initialize_and_terminate(self, name, cmd=None):
         """
         Initializes a new Plugin then ceases functionality
+        :param name: (str) name of plugin to initialize
+        :param cmd: (Command) command to initialize with
         """
+        self.initialize_and_remain(name, cmd)
+        os.kill(os.getpid(), 9)
 
-    def initialize_beta(self):
+    def initialize_beta(self, name, data, cmd=None):
         """
         Initializes one of the Plugin's BetaPlugins while remaining functional in background
+        :param name: (str) name of the beta plugin to initialize
+        :param data: any object to pass to the beta
+        :param cmd: (Command) command to initialize the beta with
         """
+        self._is_active = False
+        import_str = "{}.{}.{}".format("Plugins",
+                                       self.name,
+                                       string_utils.pascal_case_to_snake_case(name))
+        module = importlib.import_module(import_str)
+        beta = getattr(module, string_utils.snake_case_to_pascal_case(name))
+        beta = beta()
+        _name = "{}.{}".format(self.name, name)
+        Process(target=beta.initialize, args=(cmd, data), name=_name).start()
 
     ####################
     # SERVICE WRAPPERS #
@@ -211,24 +262,21 @@ class Plugin(object):
     # PRIVATE METHODS #
     ###################
 
-    def _initialize(self):
-        """
-        Starts Plugin operation
-        """
-
     def _make_active(self):
         """
         Sets self.is_active to True
         """
 
-    def _mainloop(self):
+    def _mainloop(self, cmd=None):
         """
         Keeps the Plugin active
+        :param cmd: (Command) pass through to run command in function handler
         """
 
-    def _function_handler(self):
+    def _function_handler(self, cmd):
         """
         Processes a Command object
+        :param cmd: (Command) command to process
         """
 
 
