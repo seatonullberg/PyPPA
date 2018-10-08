@@ -1,11 +1,7 @@
 import pickle
 import os
-import socket
-from queue import Queue
+import multiprocessing
 import importlib
-from multiprocessing import Process
-from threading import Thread
-import struct
 from selenium import webdriver
 from utils import path_utils
 from utils import string_utils
@@ -25,9 +21,7 @@ class Plugin(object):
         # initialize attributes
         self.local_paths = path_utils.LocalPaths()  # convenience object to return paths
         self._is_active = False  # inform the plugin of its active status
-        self.send_queue = Queue()  # queue to send message
-        self.listen_queue = Queue()  # queue to get message
-        self.cs = None  # client server object goes here
+        self.command = None  # Command object
 
     @property
     def configuration(self):
@@ -85,14 +79,13 @@ class Plugin(object):
     # PUBLIC METHODS #
     ##################
 
-    def initialize(self, cmd=None):
+    def initialize(self):
         """
         Starts Plugin operation
-        - should only be called through one of the pass or initialize methods
-        :param cmd: (Command) pass through to run a command directly on init
+        - should only ever be called through one of the pass methods
         """
-        self._make_active()
-        self._mainloop(cmd)
+        self._is_active = True
+        self._mainloop()
 
     def accepts_command(self, command):
         """
@@ -120,6 +113,24 @@ class Plugin(object):
 
         return accept
 
+    def load_protocol(self):
+        """
+        Loads the pickled dict of of plugins and their queues
+        :return: (dict)
+        """
+        pickle_path = os.path.join(self.local_paths.tmp, 'transfer_protocol.p')
+        with open(pickle_path, 'rb') as stream:
+            protocol = pickle.load(stream)
+        return protocol
+
+    def save_protocol(self, protocol):
+        """
+        Pickles a new protocol (dict of plugin names and their queues)
+        """
+        pickle_path = os.path.join(self.local_paths.tmp, 'transfer_protocol.p')
+        with open(pickle_path, 'wb') as stream:
+            pickle.dump(protocol, stream)
+
     def pass_and_remain(self, name, cmd=None):
         """
         Sends message to make another Plugin active while remaining functional in background
@@ -127,8 +138,11 @@ class Plugin(object):
         :param cmd: (Command) command to send to plugin
         """
         self._is_active = False
-        message_str = "{}${}".format(name, cmd)
-        self.send_queue.put(message_str)
+        protocol = self.load_protocol()
+        if name in protocol:
+            protocol[name].put(cmd)
+        else:
+            self._initialize_new(name, cmd)
 
     def pass_and_terminate(self, name, cmd=None):
         """
@@ -136,39 +150,31 @@ class Plugin(object):
         :param name: (str) name of the Plugin to initialize
         :param cmd: (Command) command to send to plugin
         """
+        new_protocol = self.load_protocol()
+        new_protocol.pop(self.name)  # remove self from protocol
+        self.save_protocol(new_protocol)  # save modified protocol
         self.pass_and_remain(name, cmd)
-        self.send_queue.put('quit')
-        while not self.send_queue.empty():
-            continue
         os.kill(os.getpid(), 9)
 
-    # TODO: initialize methods should be private
-    # TODO: the pass methods should check if the name is an existing process or not
-    # TODO: pass can call initialize if necessary
-    def initialize_and_remain(self, name, cmd=None):
+    def _initialize_new(self, name, cmd=None):
         """
         Initializes a new Plugin while remaining functional in background
         :param name: (str) name of plugin to initialize
         :param cmd: (Command) command to initialize with
         """
-        self._is_active = False
         import_str = "{}.{}.{}".format("Plugins",
                                        name,
                                        string_utils.pascal_case_to_snake_case(name))
         module = importlib.import_module(import_str)
         plugin = getattr(module, name)
         plugin = plugin()
-        Process(target=plugin.initialize, args=(cmd,), name=plugin.name).start()
+        new_protocol = self.load_protocol()
+        new_protocol[plugin.name] = multiprocessing.Queue()
+        new_protocol[plugin.name].put(cmd)
+        multiprocessing.Process(target=plugin.initialize, name=plugin.name).start()
+        self.save_protocol(new_protocol)
 
-    def initialize_and_terminate(self, name, cmd=None):
-        """
-        Initializes a new Plugin then ceases functionality
-        :param name: (str) name of plugin to initialize
-        :param cmd: (Command) command to initialize with
-        """
-        self.initialize_and_remain(name, cmd)
-        os.kill(os.getpid(), 9)
-
+    # TODO: make this private like self._initialize_new()
     def initialize_beta(self, name, data, cmd=None):
         """
         Initializes one of the Plugin's BetaPlugins while remaining functional in background
@@ -184,7 +190,7 @@ class Plugin(object):
         beta = getattr(module, string_utils.snake_case_to_pascal_case(name))
         beta = beta()
         _name = "{}.{}".format(self.name, name)
-        Process(target=beta.initialize, args=(cmd, data), name=_name).start()
+        multiprocessing.Process(target=beta.initialize, args=(cmd, data), name=_name).start()
 
     ####################
     # SERVICE WRAPPERS #
@@ -262,22 +268,28 @@ class Plugin(object):
     # PRIVATE METHODS #
     ###################
 
-    def _make_active(self):
-        """
-        Sets self.is_active to True
-        """
-
-    def _mainloop(self, cmd=None):
+    def _mainloop(self):
         """
         Keeps the Plugin active
-        :param cmd: (Command) pass through to run command in function handler
         """
+        protocol = self.load_protocol()
+        queue = protocol[self.name]
+        while True:
+            if self._is_active:
+                if queue.empty:  # listen for microphone input
+                    cmd = self.get_command()
+                else:  # get command from the queue
+                    cmd = queue.get()
+                self._function_handler(cmd)
 
     def _function_handler(self, cmd):
         """
         Processes a Command object
         :param cmd: (Command) command to process
         """
+        if self.accepts_command(cmd):
+            self.command = cmd  # store as attribute to acces the object from other methods
+            cmd.command_hook()
 
 
 class BetaPlugin(Plugin):
@@ -299,10 +311,10 @@ class BetaPlugin(Plugin):
                          name=self.name)  # initialize alpha Plugin
 
         # add exit context as a command for all betas
-        self.COMMAND_HOOK_DICT['exit_context'] = ['exit context']
+        self.COMMAND_HOOK_DICT[self.exit_context] = ['exit context']
         self.MODIFIERS['exit_context'] = {}
 
-    def initialize(self):
+    def initialize(self, cmd=None):
         """
         Initialize the BetaPlugin
         """
@@ -393,81 +405,3 @@ class Command(object):
                 self._postmodifier = ''.join(_input[1:])
         else:
             self._premodifier = _input  # if no modifier is detected everythin else is premodifier
-
-
-class ClientServer(object):
-    """
-    Object used to synchronize broadcast-style messaging between Plugins
-    - This class is incredibly sensitive and honestly I'm not entirely sure why it works
-    - Future updates will be required to improve robustness
-    """
-
-    def __init__(self,
-                 port,
-                 port_list,
-                 send_queue,
-                 listen_queue,
-                 group='224.3.29.71'):
-        self.port = port
-        self.port_list = port_list
-        self.send_queue = send_queue
-        self.listen_queue = listen_queue
-        self.group = group
-
-    def send(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Create the datagram socket
-        sock.settimeout(0.25)  # prevents indefinite blocking
-        ttl = struct.pack('b', 1)  # set time-to-live as 1
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
-
-        while True:
-            # get message to send from the queue
-            if not self.send_queue.empty():
-                message = self.send_queue.get()
-                if message == 'quit':
-                    break
-            else:
-                continue
-            for p in self.port_list:
-                sock.sendto(message.encode(), (self.group, p))
-                '''
-                ------------------------------------------------------------------
-                If I wanted to do a response based check this is how it would work
-
-                # Look for responses from all recipients
-                while True:
-                    try:
-                        data, server = sock.recvfrom(16)
-                    except socket.timeout:
-                        break
-                    else:
-                        print(' {} received {} from {}'.format(self.port,
-                                                               data,
-                                                               server))
-                ------------------------------------------------------------------
-                '''
-
-    def listen(self):
-        server_address = ('', self.port)
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Create the socket
-        sock.bind(server_address)  # Bind to the server address
-
-        # Tell the OS to add the socket to the multicast group on all interfaces.
-        group = socket.inet_aton(self.group)
-        mreq = struct.pack('4sL', group, socket.INADDR_ANY)
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-
-        # Receive/respond loop
-        while True:
-            data, address = sock.recvfrom(1024)
-            self.listen_queue.put(data)
-
-            '''
-            ---------------------------------------------------------------------
-            If I wanted to use acknowledgement messages this is how I would do it
-
-            print(' {} sending acknowledgement to {}'.format(self.port,
-                                                             address))
-            sock.sendto('ack'.encode(), address)
-            ---------------------------------------------------------------------
-            '''
