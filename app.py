@@ -15,6 +15,7 @@ class App(object):
     def __init__(self):
         # initialize attributes
         self.plugins = {}
+        self.betas = {}
         self.services = {}
         self.queues = {}
 
@@ -27,6 +28,11 @@ class App(object):
         for name in self.configuration.plugins:
             plugin = self._import_package(name)
             self.plugins[name] = plugin  # store plugin types locally
+
+        # load instances of all required betas
+        for name in self.configuration.betas:
+            beta = self._import_package(name)
+            self.betas[name] = beta  # store plugin types locally
 
         # load instances of all the required services
         for name in self.configuration.services:
@@ -55,6 +61,15 @@ class App(object):
             plugin = obj()
             plugin.configuration = self.configuration
             process = multiprocessing.Process(target=plugin.start, args=(queue,))
+            process.start()
+
+        # start all the betas
+        for name, obj in self.betas.items():
+            queue = parallelization.TwoWayProcessQueue()
+            self.queues[name] = queue
+            beta = obj()
+            beta.configuration = self.configuration
+            process = multiprocessing.Process(target=beta.start, args=(queue,))
             process.start()
 
         # activate sleep plugin
@@ -90,11 +105,10 @@ class App(object):
             queue.server_put(request)
 
     @staticmethod
-    def _import_package(name, alpha_name=None):
+    def _import_package(name):
         """
         Load a Plugin or Service object into memory
         :param name: name of the package to import
-        :param alpha_name: name of the BetaPlugin's Alpha
         :return: (Plugin or Service)
         """
         if name.endswith("Plugin"):
@@ -106,9 +120,11 @@ class App(object):
             b = name
             c = string.pascal_case_to_snake_case(name)
         elif name.endswith("Beta"):
+            alpha_name, beta_name = name.split('.')
             a = "Plugins"
             b = alpha_name
-            c = string.pascal_case_to_snake_case(name)
+            c = string.pascal_case_to_snake_case(beta_name)
+            name = beta_name
         else:
             raise ValueError("unknown package type: {}".format(name))
 

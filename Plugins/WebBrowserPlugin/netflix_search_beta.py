@@ -10,23 +10,21 @@ from Plugins import base
 class NetflixSearchBeta(base.BetaPlugin):
 
     def __init__(self):
-        self.COMMAND_HOOK_DICT = {'search': ['search for', 'search'],
-                                  'play': ['play'],
-                                  'pause': ['pause', 'resume', 'start', 'stop']}
-        self.MODIFIERS = {'search': {},
-                          'play': {'position': ['position']},
-                          'pause': {}}
-        super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS,
-                         name='netflix_search_beta',
-                         alpha_name='WebBrowserPlugin')
+        self.command_hooks = {self.search: ['search for', 'search'],
+                              self.play: ['play'],
+                              self.pause: ['pause', 'resume', 'start', 'stop']}
+        self.modifiers = {self.search: {},
+                          self.play: {'position': ['position']},
+                          self.pause: {}}
+        super().__init__(command_hooks=self.command_hooks,
+                         modifiers=self.modifiers,
+                         name='WebBrowserPlugin.NetflixSearchPlugin')
         self.status = None
         self.monitor_queue = Queue()
         self.monitor_thread = None
 
     def search(self):
-        driver = self.DATA
-        driver.get('https://www.netflix.com/search?q={}'.format(self.command_dict['premodifier']))
+        self.webdriver.get('https://www.netflix.com/search?q={}'.format(self.command.premodifier))
         self.status = 'search'
 
     # TODO

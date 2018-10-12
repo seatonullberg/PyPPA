@@ -12,9 +12,9 @@ class Configuration(object):
     """
 
     def __init__(self):
-        self._port_map = {}
         self._environment_variables = {}
-        self._plugins = {}
+        self._plugins = []
+        self._betas = []
         self._services = []
         self._blacklist = []
         self.local_paths = path.LocalPaths()
@@ -36,6 +36,10 @@ class Configuration(object):
     @property
     def plugins(self):
         return self._plugins
+
+    @property
+    def betas(self):
+        return self._betas
 
     @property
     def services(self):
@@ -128,6 +132,7 @@ class Configuration(object):
         plugin_pkgs.remove('README.md')
         plugin_pkgs.remove('__pycache__')
         for pkg in plugin_pkgs:
+            self._plugins.append(pkg)
             self._set_environment_variables(pkg)
             self._set_beta_plugins(pkg)
 
@@ -189,20 +194,14 @@ class Configuration(object):
         Sets self._plugins[package_name][betas]
         :param package_name: (str) name of the plugin package
         """
-        if package_name not in self._plugins:
-            self._plugins[package_name] = {}
-
-        if 'betas' not in self._plugins[package_name]:
-            self._plugins[package_name]['betas'] = {}
-
-        plugin_path = os.path.join(self.local_paths.plugins,
-                                   package_name)
+        plugin_path = os.path.join(self.local_paths.plugins, package_name)
 
         for filename in os.listdir(plugin_path):
             if filename.endswith('beta.py'):
                 beta_name = filename.replace('.py', '')  # remove the .py to get the ClassName of the beta plugin
                 beta_name = string.snake_case_to_pascal_case(beta_name)
-                self._plugins[package_name]['betas'][beta_name] = {}
+                beta_name = "{}.{}".format(package_name, beta_name)
+                self._betas.append(beta_name)
 
     def _autoconfig(self, package_name, key):
         """

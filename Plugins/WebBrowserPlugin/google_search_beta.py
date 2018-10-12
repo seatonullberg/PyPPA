@@ -10,32 +10,23 @@ from Plugins import base
 class GoogleSearchBeta(base.BetaPlugin):
 
     def __init__(self):
-        self.COMMAND_HOOK_DICT = {'search': ['search for', 'search'],
-                                  'exit_context': ['exit context'],
-                                  'open': ['open', 'select']}
-        self.MODIFIERS = {'search': {},
-                          'exit_context': {},
-                          'open': {}}
-        super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS,
-                         name='google_search_beta',
-                         alpha_name='WebBrowserPlugin')
+        self.command_hooks = {self.search: ['search for', 'search'],
+                              self.open: ['open', 'select']}
+        self.modifiers = {self.search: {},
+                          self.open: {}}
+        super().__init__(command_hooks=self.command_hooks,
+                         modifiers=self.modifiers,
+                         name='WebDriverPlugin.GoogleSearchBeta')
 
     def search(self):
-        driver = self.DATA
-        driver.get('https://www.google.com/search?q={}'.format(self.command_dict['premodifier']))
+        self.webdriver.get('https://www.google.com/search?q={}'.format(self.command.premodifier))
 
     def open(self):
-        driver = self.DATA
         # iterate through the available links
-        links = driver.find_elements_by_xpath("//h3[@class='r']/a")
+        links = self.webdriver.find_elements_by_xpath("//h3[@class='r']/a")
         for link in links:
             href = link.get_attribute('href')
             text = link.text
-            if self.command_dict['premodifier'] in text.lower():
-                driver.get(href)
+            if self.command.premodifier in text.lower():
+                self.webdriver.get(href)
                 break
-
-    def exit_context(self, cmd=None):
-        self.DATA.quit()
-        super().exit_context(cmd)

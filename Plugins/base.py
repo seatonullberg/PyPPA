@@ -91,27 +91,39 @@ class Plugin(object):
     # WRAPPERS #
     ############
 
-    def request_plugin(self, plugin_name, command_string=None):
+    def request_plugin(self, plugin_name=None, command_string=None):
         """
         Sends PluginRequest and sets self.is_active = False
         :param plugin_name: (str) name of the Plugin to initialize
+                            - if None: call first plugin to accept the command
         :param command_string: (str) command to send to plugin
         """
         self.is_active = False
+        if plugin_name is None:
+            for pname in self.configuration.plugins:
+                accepts = self.request_command_acceptance(plugin_name=pname,
+                                                          command_string=command_string)
+                if accepts:
+                    plugin_name = pname
+                    break
+
+        if plugin_name is None:
+            raise ValueError("none of the installed plugins accept the command: {}".format(command_string))
+
         request = communication.PluginRequest(plugin_name=plugin_name,
                                               command_string=command_string)
         request.send(self.queue)
 
-    def request_service(self, service_name, data):
+    def request_data(self, package_name, data):
         """
-        Sends ServiceRequest and awaits response
-        :param service_name: (str) name of Service to use
+        Sends DataRequest and awaits response
+        :param package_name: (str) name of Service or Plugin to send data to
         :param data: object to send to the service from processing
         :return: response from service
         """
-        request = communication.ServiceRequest(service_name=service_name,
-                                               return_name=self.name,
-                                               data=data)
+        request = communication.DataRequest(send_name=package_name,
+                                            return_name=self.name,
+                                            data=data)
         request.send(self.queue)
         while self.queue.server_empty():  # all services must out some response in queue to proceed
             continue
@@ -142,7 +154,7 @@ class Plugin(object):
         :return: (str) the requested environment variable value
         """
         if base:
-            value = self.configuration.environment_variables['BASE'][key]
+            value = self.configuration.environment_variables['Base'][key]
         else:
             value = self.configuration.environment_variables[self.name][key]
         return value
@@ -161,7 +173,7 @@ class Plugin(object):
                        'post_buffer': post_buffer,
                        'maximum': maximum,
                        'reset_threshold': False}
-        response = self.request_service("ListenerService", params_dict)
+        response = self.request_data("ListenerService", params_dict)
 
         # convert to Command object
         command = Command(input_string=response,
@@ -176,7 +188,7 @@ class Plugin(object):
         Wraps ListenerService to reset the noise/signal threshold
         """
         threshold_dict = {'reset_threshold': True}
-        response = self.request_service("ListenerService", threshold_dict)
+        response = self.request_data("ListenerService", threshold_dict)
         print("old threshold: {}\nnew threshold: {}".format(response['old'], response['new']))
 
     def vocalize(self, text):
@@ -184,7 +196,7 @@ class Plugin(object):
         Wraps SpeakerService to use TTS engine
         :param text: (str) words to be spoken by TTS
         """
-        self.request_service("SpeakerService", text)  # SpeakerService returns None
+        self.request_data("SpeakerService", text)  # SpeakerService returns None
 
     def sleep(self):
         """
@@ -224,34 +236,30 @@ class Plugin(object):
         return accept
 
 
-# TODO: this is super broken
 class BetaPlugin(Plugin):
     """
     Refer to /Plugins/README.md for in depth documentation on this object
     """
 
-    def __init__(self, command_hooks, modifiers, name, alpha_name):
+    def __init__(self, command_hooks, modifiers, name):
         # process args
         self.command_hooks = command_hooks
         self.modifiers = modifiers
+        # add exit context as a command for all betas
+        self.command_hooks[self.exit_context] = ['exit context']
+        self.modifiers[self.exit_context] = {}
         self.name = name
-
-        self.alpha_name = alpha_name  # store the alpha plugin's name
-        self.DATA = None  # the data passed by the alpha plugin
 
         super().__init__(command_hooks=command_hooks,
                          modifiers=modifiers,
                          name=self.name)  # initialize alpha Plugin
 
-        # add exit context as a command for all betas
-        self.command_hooks[self.exit_context] = ['exit context']
-        self.modifiers['exit_context'] = {}
-
     def exit_context(self):
         """
         Returns control to the alpha Plugin
         """
-        return
+        alpha_name = self.name.split('.')[0]
+        self.request_plugin(alpha_name)
 
 
 class Command(object):

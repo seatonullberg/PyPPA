@@ -41,15 +41,15 @@ class PluginRequest(Request):
         self.command_string = command_string
 
 
-class ServiceRequest(Request):
+class DataRequest(Request):
     """
     Use when:
-             requesting behavior or data from a service
+             requesting behavior or data from a package
     """
 
-    def __init__(self, service_name, return_name, data):
-        super().__init__(service_name, return_name)
-        self.send_name = service_name
+    def __init__(self, send_name, return_name, data):
+        super().__init__(send_name, return_name)
+        self.send_name = send_name
         self.return_name = return_name
         self.data = data
 
@@ -66,3 +66,11 @@ class CommandAcceptanceRequest(Request):
         self.return_name = return_name
         self.command_string = command_string
         self.accepts = None
+
+
+class CacheRequest(Request):
+    """
+    Use when:
+             reading or writing a pickle file
+    """
+    # TODO

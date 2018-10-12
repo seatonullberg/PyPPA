@@ -28,13 +28,7 @@ class SleepPlugin(base.Plugin):
         cmd = self.get_command()
         print(cmd.input_string)
 
-        # iterate over all plugins to try and find one that supports a command hook found in cmd
-        # do not iterate over the betas -- they must be handled by their own plugin
-        for plugin_name in self.configuration.plugins:
-            accepts = self.request_command_acceptance(plugin_name=plugin_name,
-                                                      command_string=cmd.input_string)
-            if accepts:
-                self.request_plugin(plugin_name, cmd.input_string)
+        self.request_plugin(command_string=cmd.input_string)  # request the first plugin to accept the command
 
     def sleep(self):
         """
