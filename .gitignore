@@ -8,3 +8,4 @@ public_pickles/
 *.yaml
 bin/*/
 Services/FlaskService/templates/*.html
+*.log

@@ -4,6 +4,7 @@ import atexit
 from ctypes import *
 
 from app import App
+from utils import logging
 
 
 @atexit.register
@@ -17,8 +18,10 @@ def cleanup():
             os.remove(fpath)
 
 
-def alsa_error_handler(a,b,c,d,e):
-    pass
+def alsa_error_handler(*args):
+    error_log_file = logging.LockFile("alsa_error.log")
+    for a in args:
+        error_log_file.write(a)
 
 
 if __name__ == "__main__":
