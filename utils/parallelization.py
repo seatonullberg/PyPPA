@@ -6,7 +6,8 @@ class TwoWayProcessQueue(object):
     Convenience object to allow two-way data transfer between processes
     - first in == first out
     """
-    def __init__(self, manager):
+    def __init__(self):
+        manager = multiprocessing.Manager()
         self._server_queue = manager.Queue()
         self._client_queue = manager.Queue()
 

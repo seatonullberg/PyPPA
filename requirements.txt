@@ -10,7 +10,7 @@ praw
 pydub
 gtts
 cv2
-face_recognition
+dlib
 yaml
 scipy
 sklearn

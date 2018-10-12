@@ -1,7 +1,6 @@
 import os
 import yaml
 import pickle
-from utils import path_utils  # TODO
 
 
 def new_profile(name):

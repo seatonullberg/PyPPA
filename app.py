@@ -38,11 +38,10 @@ class App(object):
         """
         Instantiate all of the Plugins and Services in individual processes
         """
-        manager = multiprocessing.Manager()
 
         # start all the services
         for name, obj in self.services.items():
-            queue = parallelization.TwoWayProcessQueue(manager)
+            queue = parallelization.TwoWayProcessQueue()
             self.queues[name] = queue
             service = obj()
             service.configuration = self.configuration
@@ -51,7 +50,7 @@ class App(object):
 
         # start all the plugins
         for name, obj in self.plugins.items():
-            queue = parallelization.TwoWayProcessQueue(manager)
+            queue = parallelization.TwoWayProcessQueue()
             self.queues[name] = queue
             plugin = obj()
             plugin.configuration = self.configuration
