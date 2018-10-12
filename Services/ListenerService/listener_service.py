@@ -5,7 +5,6 @@ import wave
 import os
 import numpy as np
 import copy
-import pickle
 from Services import base
 
 
@@ -30,22 +29,20 @@ class ListenerService(base.Service):
         self.output_filename = 'command.txt'
         self.delay = 0.1
         super().__init__(name=self.name,
-                         input_filename=self.input_filename,
-                         output_filename=self.output_filename,
-                         delay=self.delay)
+                         target=self.active)
 
     def active(self):
-        params_dict = pickle.load(open(self.input_filename, 'rb'))
+        params_dict = self.input_data
         if params_dict['reset_threshold']:
             # reset the noise threshold
-            self.reset_threshold()
+            result = self.reset_threshold()
         else:
             self.pre_buffer = params_dict['pre_buffer']
             self.post_buffer = params_dict['post_buffer']
-            self.max_dialogue = params_dict['max_dialogue']
-            command = self.listen_and_convert()
+            self.max_dialogue = params_dict['maximum']
+            result = self.listen_and_convert()
             # write the command to file for plugin to retrieve
-            self.output(command)
+        self.respond(result)
 
     def get_rms(self, block):
         SHORT_NORMALIZE = (1.0 / 32768.0)
@@ -218,4 +215,5 @@ class ListenerService(base.Service):
         _stdev = np.std(values)
         new_threshold = _mean + (4 * _stdev)
         self.threshold = new_threshold
-        print("old: {}\nnew: {}".format(old_threshold, new_threshold))
+        results = {'old': old_threshold, 'new': new_threshold}
+        return results

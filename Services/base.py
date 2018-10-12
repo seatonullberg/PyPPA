@@ -1,8 +1,5 @@
 import datetime
-import os
-import pickle
-import time
-# TODO implement a log file
+from utils import path
 
 
 class Clock(object):
@@ -44,69 +41,37 @@ class Clock(object):
 
 class Service(object):
 
-    def __init__(self,
-                 name,
-                 input_filename,
-                 output_filename,
-                 delay):
+    def __init__(self, name, target):
         self.name = name
-        input_path = [os.getcwd(), 'tmp', input_filename]
-        input_filename = os.path.join('', *input_path)
-        self.input_filename = input_filename
-        output_path = [os.getcwd(), 'tmp', output_filename]
-        output_filename = os.path.join('', *output_path)
-        self.output_filename = output_filename
-        self.delay = delay
-        self.clock = Clock()
+        self.target = target
 
-    @property
-    def config_obj(self):
-        '''
-        Load the configuration data into a convenient dict
-        :return: dict(config_dict)
-        '''
-        try:
-            # load the configuration pickle
-            config_pickle_path = [os.getcwd(), 'tmp', 'configuration.p']
-            config_pickle_path = os.path.join('', *config_pickle_path)
-            config_obj = pickle.load(open(config_pickle_path, 'rb'))
-        except FileNotFoundError:
-            print("Unable to load a configuration")
-            raise
+        self.queue = None
+        self.configuration = None
+        self.input_data = None
+        self._request = None
+        self.local_paths = path.LocalPaths()  # convenience object to return paths
 
-        return config_obj
-
-    def mainloop(self):
-        # keep the service running continuously
+    def start(self, queue):
+        self.queue = queue
         while True:
-            if os.path.isfile(self.input_filename):
-                # wait for any desired response delay
-                # TODO: do this without delays
-                # it currently exists because some files
-                # can trigger True before the content is ready
-                time.sleep(self.delay)
-                self.active()
-                # clean up to prevent perpetual active loop
-                os.remove(self.input_filename)
-            else:
-                self.default()
+            if not self.queue.server_empty():
+                self._request = self.queue.server_get()
+                self.input_data = self._request.data
+                self.target()
 
-    def default(self):
-        # to be overwritten by subclass (or remain null action)
-        # define the behavior of the service when no signal is detected
-        pass
+    def respond(self, output_data):
+        self._request.data = output_data
+        self._request.respond(self.queue)
 
-    def active(self):
-        # to be overwritten by subclass (or remain null action)
-        # define the behavior of the service when no signal is detected
-        self.clock.update(flag='active')
-
-    def output(self, data):
-        if self.output_filename.endswith('.p'):
-            # pickle the data
-            pickle.dump(data, open(self.output_filename, 'wb'))
+    def environment_variable(self, key, base=False):
+        """
+        Reads an environment variable from the configuration
+        :param key: (str) the environment variable key/name
+        :param base: (bool) indicates if the environment variable is a base environment variable
+        :return: (str) the requested environment variable value
+        """
+        if base:
+            value = self.configuration.environment_variables['BASE'][key]
         else:
-            # write as text file
-            with open(self.output_filename, 'w') as outfile:
-                outfile.write(data)
-        self.clock.update(flag='output')
+            value = self.configuration.environment_variables[self.name][key]
+        return value

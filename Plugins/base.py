@@ -1,10 +1,7 @@
-import pickle
-import os
-import multiprocessing
-import importlib
 from selenium import webdriver
-from utils import path_utils
-from utils import string_utils
+
+from utils import path
+from utils import communication
 
 
 class Plugin(object):
@@ -12,27 +9,18 @@ class Plugin(object):
     Refer to /Plugins/README.md for in depth documentation on this object
     """
 
-    def __init__(self, command_hook_dict, modifiers, name):
+    def __init__(self, command_hooks, modifiers, name):
         # process args
-        self.COMMAND_HOOK_DICT = command_hook_dict
-        self.MODIFIERS = modifiers
+        self.command_hooks = command_hooks
+        self.modifiers = modifiers
         self.name = name
+        self.queue = None  # this gets defined by the app context
 
         # initialize attributes
-        self.local_paths = path_utils.LocalPaths()  # convenience object to return paths
-        self._is_active = False  # inform the plugin of its active status
-        self.command = None  # Command object
-
-    @property
-    def configuration(self):
-        """
-        Loads the configuration.p file
-        :return: Configuration object
-        """
-        pickle_path = os.path.join(self.local_paths.tmp, 'configuration.p')
-        with open(pickle_path, 'rb') as stream:
-            config = pickle.load(stream)
-        return config
+        self.command = None  # used by subclasses to process the current command
+        self.configuration = None  # this gets defined by App
+        self.is_active = False  # indicates if the mainloop has started in a new process
+        self.local_paths = path.LocalPaths()  # convenience object to return paths
 
     @property
     def webdriver(self, options=None):
@@ -41,8 +29,8 @@ class Plugin(object):
         :return: selenium.webdriver object
         """
         # CHROME_PROFILE_PATH = self.config_obj.environment_variables['Base']['CHROME_PROFILE_PATH']
-        CHROMEDRIVER_PATH = os.path.join(self.local_paths.bin, 'chromedriver')
-
+        # chromedriver_path = os.path.join(self.local_paths.bin, 'chromedriver')
+        chromedriver_path = self.environment_variable('CHROMEDRIVER_PATH', base=True)
         # set default options
         if options is None:
             '''
@@ -61,140 +49,103 @@ class Plugin(object):
             options.add_argument('--disable-default-apps')
             options.add_argument("--window-size=1920,1080")
 
-        driver = webdriver.Chrome(executable_path=CHROMEDRIVER_PATH,
-                                  options=options)
+        driver = webdriver.Chrome(executable_path=chromedriver_path, options=options)
         return driver
 
-    @property
-    def web_app_url(self):
+    def start(self, queue):
         """
-        Wraps FlaskService to determine appropriate URL for localhost webapp
-        :return: (str) url
+        Keep the plugin process active
+        - should only be called by the app context
         """
-        port = self.configuration.environment_variables['FlaskService']['PORT']
-        host = self.configuration.environment_variables['FlaskService']['HOST']
-        return "{}:{}/{}".format(host, port, self.name)
+        self.queue = queue
 
-    ##################
-    # PUBLIC METHODS #
-    ##################
-
-    def initialize(self):
-        """
-        Starts Plugin operation
-        - should only ever be called through one of the pass methods
-        """
-        self._is_active = True
-        self._mainloop()
-
-    def accepts_command(self, command):
-        """
-        Checks whether or not the plugin accepts a Command object
-        :param: (str) or (Command)
-                - if (str): creates command object from string and parses to check
-                - if (Command): checks directly
-        :return: (bool)
-        """
-        if type(command) == str:
-            command = Command(input_string=command,
-                              command_hook_dict=self.COMMAND_HOOK_DICT,
-                              modifiers=self.MODIFIERS)
-            if command.command_hook:
-                accept = True
+        while True:
+            command = ''
+            # check queue for new requests
+            if self.queue.server_empty() and self.is_active:
+                command = self.get_command()
             else:
-                accept = False
-        elif type(command) == Command:
-            if command.command_hook:
-                accept = True
-            else:
-                accept = False
+                request = self.queue.server_get()
+                if type(request) == communication.PluginRequest:  # process plugin request
+                    self.is_active = True
+                    command_string = request.command_string  # get command from the request
+                    command = Command(input_string=command_string,
+                                      command_hooks=self.command_hooks,
+                                      modifiers=self.modifiers)
+                    command.parse()
+                elif type(request) == communication.CommandAcceptanceRequest:  # process command accept request
+                    cmd = request.command_string
+                    result = self._accepts_command(cmd)
+                    request.accepts = result  # set the request's attribute prior to responding
+                else:
+                    raise NotImplementedError()
+
+                request.respond(self.queue)
+
+            # execute any detected command
+            if self._accepts_command(command):
+                self.command = command
+                command.command_hook()
+
+    ############
+    # WRAPPERS #
+    ############
+
+    def request_plugin(self, plugin_name, command_string=None):
+        """
+        Sends PluginRequest and sets self.is_active = False
+        :param plugin_name: (str) name of the Plugin to initialize
+        :param command_string: (str) command to send to plugin
+        """
+        self.is_active = False
+        request = communication.PluginRequest(plugin_name=plugin_name,
+                                              command_string=command_string)
+        request.send(self.queue)
+
+    def request_service(self, service_name, data):
+        """
+        Sends ServiceRequest and awaits response
+        :param service_name: (str) name of Service to use
+        :param data: object to send to the service from processing
+        :return: response from service
+        """
+        request = communication.ServiceRequest(service_name=service_name,
+                                               return_name=self.name,
+                                               data=data)
+        request.send(self.queue)
+        while self.queue.server_empty():  # all services must out some response in queue to proceed
+            continue
+        result = self.queue.server_get()
+        return result.data
+
+    def request_command_acceptance(self, plugin_name, command_string):
+        """
+        Requests if plugin_name accepts the proposed command
+        :param plugin_name: (str) Plugin to send to
+        :param command_string: (str) command to test
+        :return: (bool) indicating is command is accepted
+        """
+        request = communication.CommandAcceptanceRequest(plugin_name=plugin_name,
+                                                         return_name=self.name,
+                                                         command_string=command_string)
+        request.send(self.queue)
+        while self.queue.server_empty():
+            continue
+        result = self.queue.server_get()
+        return result.accepts
+
+    def environment_variable(self, key, base=False):
+        """
+        Reads an environment variable from the configuration
+        :param key: (str) the environment variable key/name
+        :param base: (bool) indicates if the environment variable is a base environment variable
+        :return: (str) the requested environment variable value
+        """
+        if base:
+            value = self.configuration.environment_variables['BASE'][key]
         else:
-            raise TypeError("command must be type str or Command")
-
-        return accept
-
-    def load_protocol(self):
-        """
-        Loads the pickled dict of of plugins and their queues
-        :return: (dict)
-        """
-        pickle_path = os.path.join(self.local_paths.tmp, 'transfer_protocol.p')
-        with open(pickle_path, 'rb') as stream:
-            protocol = pickle.load(stream)
-        return protocol
-
-    def save_protocol(self, protocol):
-        """
-        Pickles a new protocol (dict of plugin names and their queues)
-        """
-        pickle_path = os.path.join(self.local_paths.tmp, 'transfer_protocol.p')
-        with open(pickle_path, 'wb') as stream:
-            pickle.dump(protocol, stream)
-
-    def pass_and_remain(self, name, cmd=None):
-        """
-        Sends message to make another Plugin active while remaining functional in background
-        :param name: (str) name of the Plugin to initialize
-        :param cmd: (Command) command to send to plugin
-        """
-        self._is_active = False
-        protocol = self.load_protocol()
-        if name in protocol:
-            protocol[name].put(cmd)
-        else:
-            self._initialize_new(name, cmd)
-
-    def pass_and_terminate(self, name, cmd=None):
-        """
-        Sends message to make another Plugin active then ceases functionality
-        :param name: (str) name of the Plugin to initialize
-        :param cmd: (Command) command to send to plugin
-        """
-        new_protocol = self.load_protocol()
-        new_protocol.pop(self.name)  # remove self from protocol
-        self.save_protocol(new_protocol)  # save modified protocol
-        self.pass_and_remain(name, cmd)
-        os.kill(os.getpid(), 9)
-
-    def _initialize_new(self, name, cmd=None):
-        """
-        Initializes a new Plugin while remaining functional in background
-        :param name: (str) name of plugin to initialize
-        :param cmd: (Command) command to initialize with
-        """
-        import_str = "{}.{}.{}".format("Plugins",
-                                       name,
-                                       string_utils.pascal_case_to_snake_case(name))
-        module = importlib.import_module(import_str)
-        plugin = getattr(module, name)
-        plugin = plugin()
-        new_protocol = self.load_protocol()
-        new_protocol[plugin.name] = multiprocessing.Queue()
-        new_protocol[plugin.name].put(cmd)
-        multiprocessing.Process(target=plugin.initialize, name=plugin.name).start()
-        self.save_protocol(new_protocol)
-
-    # TODO: make this private like self._initialize_new()
-    def initialize_beta(self, name, data, cmd=None):
-        """
-        Initializes one of the Plugin's BetaPlugins while remaining functional in background
-        :param name: (str) name of the beta plugin to initialize
-        :param data: any object to pass to the beta
-        :param cmd: (Command) command to initialize the beta with
-        """
-        self._is_active = False
-        import_str = "{}.{}.{}".format("Plugins",
-                                       self.name,
-                                       string_utils.pascal_case_to_snake_case(name))
-        module = importlib.import_module(import_str)
-        beta = getattr(module, string_utils.snake_case_to_pascal_case(name))
-        beta = beta()
-        _name = "{}.{}".format(self.name, name)
-        multiprocessing.Process(target=beta.initialize, args=(cmd, data), name=_name).start()
-
-    ####################
-    # SERVICE WRAPPERS #
-    ####################
+            value = self.configuration.environment_variables[self.name][key]
+        return value
 
     def get_command(self, pre_buffer=None, post_buffer=1, maximum=10):
         """
@@ -205,124 +156,102 @@ class Plugin(object):
         :param maximum: maximum seconds to wait
         :return: Command object
         """
-        # call the listener service and collect response
-        signal_fname = self.configuration.services['ListenerService']['input_filename']
-        response_fname = self.configuration.services['ListenerService']['output_filename']
-
-        # create the params file for the service to read
+        # create the params to send
         params_dict = {'pre_buffer': pre_buffer,
                        'post_buffer': post_buffer,
                        'maximum': maximum,
                        'reset_threshold': False}
-        with open(signal_fname, 'wb') as stream:
-            pickle.dump(params_dict, stream)
-
-        # wait for the response
-        while not os.path.isfile(response_fname):
-            continue
-
-        # once the file exists read its content
-        with open(response_fname, 'r') as f:
-            command = f.read()
-        os.remove(response_fname)  # delete the response file
+        response = self.request_service("ListenerService", params_dict)
 
         # convert to Command object
-        command = Command(input_string=command,
-                          command_hook_dict=self.COMMAND_HOOK_DICT,
-                          modifiers=self.MODIFIERS)
-
+        command = Command(input_string=response,
+                          command_hooks=self.command_hooks,
+                          modifiers=self.modifiers)
+        command.parse()
+        self.command = command
         return command
 
     def reset_threshold(self):
         """
         Wraps ListenerService to reset the noise/signal threshold
         """
-        path = self.configuration.services['ListenerService']['input_filename']
-        _d = {'reset_threshold': True}
-        while os.path.isfile(path):  # wait for last process to complete
-            continue
-
-        with open(path, 'wb') as stream:
-            pickle.dump(_d, stream)
-
-        while os.path.isfile(path):  # wait for processing to complete
-            continue
+        threshold_dict = {'reset_threshold': True}
+        response = self.request_service("ListenerService", threshold_dict)
+        print("old threshold: {}\nnew threshold: {}".format(response['old'], response['new']))
 
     def vocalize(self, text):
         """
         Wraps SpeakerService to use TTS engine
         :param text: (str) words to be spoken by TTS
         """
-        assert type(text) == str
-        path = self.configuration.services['SpeakerService']['input_filename']
-        while os.path.isfile(path):  # wait for last process to complete
-            continue
+        self.request_service("SpeakerService", text)  # SpeakerService returns None
 
-        with open(path, 'w') as stream:
-            stream.write(text)
-
-        while os.path.isfile(path):  # wait for processing to complete
-            continue
+    def sleep(self):
+        """
+        Wraps SleepPlugin for simple transfers to inactive state
+        """
+        self.request_plugin(plugin_name='SleepPlugin',
+                            command_string='sleep')
 
     ###################
     # PRIVATE METHODS #
     ###################
 
-    def _mainloop(self):
+    def _accepts_command(self, command):
         """
-        Keeps the Plugin active
+        Checks whether or not the plugin accepts a Command object
+        :param: (str) or (Command)
+                - if (str): creates command object from string and parses to check
+                - if (Command): checks directly
+        :return: (bool)
         """
-        protocol = self.load_protocol()
-        queue = protocol[self.name]
-        while True:
-            if self._is_active:
-                if queue.empty:  # listen for microphone input
-                    cmd = self.get_command()
-                else:  # get command from the queue
-                    cmd = queue.get()
-                self._function_handler(cmd)
+        if type(command) == str:
+            command = Command(input_string=command,
+                              command_hooks=self.command_hooks,
+                              modifiers=self.modifiers)
+            command.parse()
 
-    def _function_handler(self, cmd):
-        """
-        Processes a Command object
-        :param cmd: (Command) command to process
-        """
-        if self.accepts_command(cmd):
-            self.command = cmd  # store as attribute to acces the object from other methods
-            cmd.command_hook()
+        elif type(command) == Command:
+            command.parse()
+        else:
+            raise TypeError("command must be type str or Command")
+
+        if command.command_hook:
+            accept = True
+        else:
+            accept = False
+
+        return accept
 
 
+# TODO: this is super broken
 class BetaPlugin(Plugin):
     """
     Refer to /Plugins/README.md for in depth documentation on this object
     """
 
-    def __init__(self, command_hook_dict, modifiers, name, alpha_name):
+    def __init__(self, command_hooks, modifiers, name, alpha_name):
         # process args
-        self.COMMAND_HOOK_DICT = command_hook_dict
-        self.MODIFIERS = modifiers
+        self.command_hooks = command_hooks
+        self.modifiers = modifiers
         self.name = name
 
         self.alpha_name = alpha_name  # store the alpha plugin's name
         self.DATA = None  # the data passed by the alpha plugin
 
-        super().__init__(command_hook_dict=command_hook_dict,
+        super().__init__(command_hooks=command_hooks,
                          modifiers=modifiers,
                          name=self.name)  # initialize alpha Plugin
 
         # add exit context as a command for all betas
-        self.COMMAND_HOOK_DICT[self.exit_context] = ['exit context']
-        self.MODIFIERS['exit_context'] = {}
-
-    def initialize(self, cmd=None):
-        """
-        Initialize the BetaPlugin
-        """
+        self.command_hooks[self.exit_context] = ['exit context']
+        self.modifiers['exit_context'] = {}
 
     def exit_context(self):
         """
         Returns control to the alpha Plugin
         """
+        return
 
 
 class Command(object):
@@ -330,10 +259,10 @@ class Command(object):
     Used to process vocal commands in a modular and easily parse-able way
     """
 
-    def __init__(self, input_string, command_hook_dict, modifiers):
+    def __init__(self, input_string, command_hooks, modifiers):
         # process args
         self.input_string = input_string
-        self.command_hook_dict = command_hook_dict
+        self.command_hooks = command_hooks
         self.modifiers = modifiers
 
         # initialize attributes
@@ -346,7 +275,7 @@ class Command(object):
     def command_hook(self):
         """
         Returns the command hook found in self.input string
-        :return: (str)
+        :return: function to call
         """
         return self._command_hook
 
@@ -379,9 +308,8 @@ class Command(object):
         Sets all of the properties by scanning self.input_string
         """
         _input = self.input_string
-
         # find command hook
-        for hook, spellings in self.command_hook_dict.items():
+        for hook, spellings in self.command_hooks.items():
             for spelling in spellings:
                 if spelling in _input:
                     self._command_hook = hook
@@ -395,13 +323,13 @@ class Command(object):
         for modifier, spellings in target_modifier.items():
             for spelling in spellings:
                 if spelling in _input:
-                    self._modifier = modifier
+                    self._modifier = spelling.strip()
 
         # find premodifier and postmodifier
         if self.modifier:
             _input = _input.split(self.modifier)
-            self._premodifier = _input[0]
+            self._premodifier = _input[0].strip()
             if len(_input) > 1:
-                self._postmodifier = ''.join(_input[1:])
+                self._postmodifier = ''.join(_input[1:]).strip()
         else:
-            self._premodifier = _input  # if no modifier is detected everythin else is premodifier
+            self._premodifier = _input.strip()  # if no modifier is detected everythin else is premodifier

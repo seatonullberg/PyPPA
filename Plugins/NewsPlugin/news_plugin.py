@@ -1,37 +1,40 @@
 import requests
 import time
 import json
+
 from Plugins import base
 
 
-# TODO: add 'about' feature to get topical news
-# TODO: implement web app logging to display the stories in an attractive way while they're read
-# - add option to open the full article
-# - add optional full text read
-# - add toggle between articles
 class NewsPlugin(base.Plugin):
 
     def __init__(self):
+        """
+        Collects recent news stories from newsapi.org and reads them aloud
+        """
         self.name = 'NewsPlugin'
-        self.COMMAND_HOOK_DICT = {'get_news': ['get me the news', 'give me the news',
-                                               'get me news', 'get the news', 'get news']
-                                  }
-        self.MODIFIERS = {'get_news': {'by': ['by', 'buy', 'bye']}}
+        self.command_hooks = {self.get_news: ['get me the news', 'give me the news',
+                                              'get me news', 'get the news', 'get news']
+                              }
+        self.modifiers = {self.get_news: {'by': ['by', 'buy', 'bye']}}
         super().__init__(name=self.name,
-                         command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS)
+                         command_hooks=self.command_hooks,
+                         modifiers=self.modifiers)
 
     def get_news(self):
-        API_KEY = self.config_obj.environment_variables[self.name]['API_KEY']
-        if self.command_dict['modifier'] == 'by':
+        """
+        Make the api call and include 'source' as a user option through modifiers
+        """
+        api_key = self.environment_variable('API_KEY')
+        if self.command.modifier == 'by':
             # a desired source is supplied
-            source = self.command_dict['postmodifier']
+            source = self.command.postmodifier
             source = source.replace(' ', '-')
         else:
             # make Reuters the default news source
             source = 'reuters'
         # make the API call through newsapi.org with user's api key
-        response = requests.get(r'https://newsapi.org/v1/articles?source='+source+'&sortBy=latest&apiKey='+str(API_KEY))
+        response = requests.get('https://newsapi.org/v1/articles?source={}&sortBy=latest&apiKey={}'.format(source,
+                                                                                                           api_key))
         response = json.loads(response.text)
         try:
             # get the first 5 articles
@@ -44,18 +47,14 @@ class NewsPlugin(base.Plugin):
         article_urls = []
         for i, article in enumerate(articles):
             article_urls.append(article['url'])
-            self.vocalize('Article number {}'.format(i+1))
-            self.vocalize(article['description'])
+            self.vocalize('Article number {}'.format(i + 1))
+            if article['description'] is None:
+                self.vocalize('does not have a description')
+            else:
+                self.vocalize(article['description'])
             time.sleep(0.5)
 
-        self.pass_and_terminate(name='SleepPlugin',
-                                cmd='sleep')
-
-    def _generate_html(self):
-        # used to format the news stories so they can be served to localhost
-        pass
-
-
+        self.sleep()
 
         '''
         article_list = []

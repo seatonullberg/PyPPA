@@ -1,9 +1,9 @@
 import os
-import pickle
 import importlib
 import yaml
 import exceptions  # custom exceptions
-from utils import string_utils  # custom string utility functions
+from utils import string  # custom string utility functions
+from utils import path  # custom path handling
 
 
 class Configuration(object):
@@ -15,36 +15,19 @@ class Configuration(object):
         self._port_map = {}
         self._environment_variables = {}
         self._plugins = {}
-        self._services = {}
+        self._services = []
         self._blacklist = []
-
-    @property
-    def working_path(self):
-        path = os.path.dirname(__file__)
-        path = os.path.dirname(path)
-        return path  # return the /PyPPA/ directory path
+        self.local_paths = path.LocalPaths()
 
     @property
     def yaml_path(self):
-        return os.path.join(self.working_path,
-                            'Configuration',
+        return os.path.join(self.local_paths.configuration,
                             'configuration.yaml')  # returns the path to the yaml config
 
     @property
-    def pickle_path(self):
-        return os.path.join(self.working_path,
-                            'tmp',
-                            'configuration.p')  # returns the path to configuration pickle
-
-    @property
     def log_path(self):
-        return os.path.join(self.working_path,
-                            'Configuration',
+        return os.path.join(self.local_paths.configuration,
                             'configuration.log')  # returns the path to the configuration error log
-
-    @property
-    def port_map(self):
-        return self._port_map
 
     @property
     def environment_variables(self):
@@ -79,9 +62,8 @@ class Configuration(object):
         self._scan_base()
         self._scan_plugins()
         self._scan_services()
-        self._set_port_map()
         self._write_yaml()
-        self._write_pickle()
+        # self._write_pickle()  # should no longer need to pickle since Configuration is stored by App Context
 
         if os.path.isfile(self.log_path):
             raise exceptions.ConfigurationError("The configuration is incomplete. "
@@ -104,8 +86,8 @@ class Configuration(object):
         to_yaml = {}
         to_yaml['ENVIRONMENT_VARIABLES'] = self.environment_variables
         # add blacklist
-        plugin_packages = os.listdir(os.path.join(self.working_path, 'Plugins'))
-        service_packages = os.listdir(os.path.join(self.working_path, 'Services'))
+        plugin_packages = os.listdir(self.local_paths.plugins)
+        service_packages = os.listdir(self.local_paths.services)
         packages = plugin_packages + service_packages
         blacklist_as_dict = {}
         for pkg in packages:
@@ -118,18 +100,11 @@ class Configuration(object):
         with open(self.yaml_path, 'w') as stream:
             yaml.dump(to_yaml, stream)
 
-    def _write_pickle(self):
-        """
-        Creates a pickle file of this Configuration object
-        """
-        with open(self.pickle_path, 'wb') as stream:
-            pickle.dump(self, stream)
-
     def _scan_base(self):
         """
         Sets the environment variables for the Base environment.txt file
         """
-        base_path = os.path.join(self.working_path, self.environment_fn)
+        base_path = os.path.join(self.local_paths.pyppa, self.environment_fn)
         if 'Base' not in self._environment_variables:
             self._environment_variables['Base'] = {}
 
@@ -145,31 +120,30 @@ class Configuration(object):
         """
         Collects the required configuration information from all plugins in /Plugins/
         """
-        plugins_path = os.path.join(self.working_path, 'Plugins')
-        plugin_pkgs = os.listdir(plugins_path)
+        plugin_pkgs = os.listdir(self.local_paths.plugins)
         plugin_pkgs = [pkg for pkg in plugin_pkgs if pkg not in self.blacklist]
         plugin_pkgs.remove('base.py')
+        plugin_pkgs.remove('base.old.py')
+        plugin_pkgs.remove('base.old.old.py')
         plugin_pkgs.remove('README.md')
         plugin_pkgs.remove('__pycache__')
         for pkg in plugin_pkgs:
             self._set_environment_variables(pkg)
             self._set_beta_plugins(pkg)
-            self._set_command_hook_dict(pkg)
-            self._set_modifiers(pkg)
 
     def _scan_services(self):
         """
         Collects the required configuration information from all services in /Services/
         """
-        services_path = os.path.join(self.working_path, 'Services')
-        service_pkgs = os.listdir(services_path)
+        service_pkgs = os.listdir(self.local_paths.services)
         service_pkgs = [pkg for pkg in service_pkgs if pkg not in self.blacklist]
         service_pkgs.remove('base.py')
-        service_pkgs.remove('README.md.py')
+        service_pkgs.remove('base.old.py')
+        service_pkgs.remove('README.md')
         service_pkgs.remove('__pycache__')
         for pkg in service_pkgs:
+            self._services.append(pkg)
             self._set_environment_variables(pkg)
-            self._set_io_filenames(pkg)
 
     def _set_environment_variables(self, package_name):
         """
@@ -179,7 +153,7 @@ class Configuration(object):
         if package_name not in self._environment_variables:
             self._environment_variables[package_name] = {}
 
-        environment_path = os.path.join(self.working_path,
+        environment_path = os.path.join(self.local_paths.pyppa,
                                         '{}',
                                         package_name,
                                         self.environment_fn)
@@ -189,7 +163,7 @@ class Configuration(object):
         elif package_name.endswith('Service'):
             environment_path = environment_path.format('Services')
         else:
-            raise ValueError("invalid package_name")
+            raise ValueError("invalid package_name: {}".format(package_name))
 
         with open(environment_path, 'r') as stream:
             environment_variables = [line.strip() for line in stream]
@@ -221,133 +195,14 @@ class Configuration(object):
         if 'betas' not in self._plugins[package_name]:
             self._plugins[package_name]['betas'] = {}
 
-        plugin_path = os.path.join(self.working_path,
-                                   'Plugins',
+        plugin_path = os.path.join(self.local_paths.plugins,
                                    package_name)
 
         for filename in os.listdir(plugin_path):
             if filename.endswith('beta.py'):
                 beta_name = filename.replace('.py', '')  # remove the .py to get the ClassName of the beta plugin
-                beta_name = string_utils.snake_case_to_pascal_case(beta_name)
+                beta_name = string.snake_case_to_pascal_case(beta_name)
                 self._plugins[package_name]['betas'][beta_name] = {}
-                self._set_command_hook_dict(package_name, filename)
-                self._set_modifiers(package_name, filename)
-
-    def _set_command_hook_dict(self, package_name, beta_filename=None):
-        """
-        Sets self._plugins[package_name]['command_hook_dict'] with the respective plugin's COMMAND_HOOK_DICT
-        :param package_name: (str) name of the plugin package
-        :param beta_filename: (str) name of the beta filename to retrieve from if provided
-        """
-        # define these to save line space
-        SNAKE_PLUGIN = string_utils.pascal_case_to_snake_case(package_name)
-        PASCAL_PLUGIN = package_name
-        if beta_filename is not None:
-            SNAKE_BETA = beta_filename.replace('.py', '')
-            PASCAL_BETA = string_utils.snake_case_to_pascal_case(SNAKE_BETA)
-        else:
-            SNAKE_BETA = None
-            PASCAL_BETA = None
-
-        if PASCAL_PLUGIN not in self._plugins:
-            self._plugins[PASCAL_PLUGIN] = {}
-
-        if beta_filename is None:
-            import_str = "{}.{}.{}".format('Plugins',
-                                           PASCAL_PLUGIN,
-                                           SNAKE_PLUGIN)
-            module = importlib.import_module(import_str)
-            plugin = getattr(module,
-                             PASCAL_PLUGIN)
-            plugin = plugin()
-            command_hook_dict = getattr(plugin, 'COMMAND_HOOK_DICT')
-            self._plugins[PASCAL_PLUGIN]['command_hook_dict'] = command_hook_dict
-        else:
-            import_str = "{}.{}.{}".format('Plugins',
-                                           PASCAL_PLUGIN,
-                                           SNAKE_BETA)
-            module = importlib.import_module(import_str)
-            beta_plugin = getattr(module,
-                                  PASCAL_BETA)
-            beta_plugin = beta_plugin()
-            command_hook_dict = getattr(beta_plugin, 'COMMAND_HOOK_DICT')
-            self._plugins[PASCAL_PLUGIN]['betas'][PASCAL_BETA]['command_hook_dict'] = command_hook_dict
-
-    def _set_modifiers(self, package_name, beta_filename=None):
-        """
-        Sets self._plugins[package_name]['modifiers'] with the respective plugin's MODIFIERS
-        :param package_name: (str) name of the plugin package
-        :param beta_filename: (str) name of the beta filename to retrieve from if provided
-        """
-        # define these to save line space
-        SNAKE_PLUGIN = string_utils.pascal_case_to_snake_case(package_name)
-        PASCAL_PLUGIN = package_name
-        if beta_filename is not None:
-            SNAKE_BETA = beta_filename.replace('.py', '')
-            PASCAL_BETA = string_utils.snake_case_to_pascal_case(SNAKE_BETA)
-        else:
-            SNAKE_BETA = None
-            PASCAL_BETA = None
-
-        if PASCAL_PLUGIN not in self._plugins:
-            self._plugins[PASCAL_PLUGIN] = {}
-
-        if beta_filename is None:
-            import_str = "{}.{}.{}".format('Plugins',
-                                           PASCAL_PLUGIN,
-                                           SNAKE_PLUGIN)
-            module = importlib.import_module(import_str)
-            plugin = getattr(module,
-                             PASCAL_PLUGIN)
-            plugin = plugin()
-            modifiers = getattr(plugin, 'MODIFIERS')
-            self._plugins[PASCAL_PLUGIN]['modifiers'] = modifiers
-        else:
-            import_str = "{}.{}.{}".format('Plugins',
-                                           PASCAL_PLUGIN,
-                                           SNAKE_BETA)
-            module = importlib.import_module(import_str)
-            beta_plugin = getattr(module,
-                                  PASCAL_BETA)
-            beta_plugin = beta_plugin()
-            modifiers = getattr(beta_plugin, 'MODIFIERS')
-            self._plugins[PASCAL_PLUGIN]['betas'][PASCAL_BETA]['modifiers'] = modifiers
-
-    def _set_io_filenames(self, package_name):
-        """
-        Sets self._services[package_name] with the input and output filenames for the service
-        :param package_name: (str) name of the service package
-        """
-        # define these to save line space
-        PASCAL_SERVICE = package_name
-        SNAKE_SERVICE = string_utils.pascal_case_to_snake_case(PASCAL_SERVICE)
-
-        if PASCAL_SERVICE not in self._services:
-            self._services[PASCAL_SERVICE] = {}
-
-        import_str = "{}.{}.{}".format('Services',
-                                       PASCAL_SERVICE,
-                                       SNAKE_SERVICE)
-        module = importlib.import_module(import_str)
-        service = getattr(module,
-                          PASCAL_SERVICE)
-        service = service()
-        fn_in = getattr(service, 'input_filename')
-        fn_out = getattr(service, 'output_filename')
-        self._services[PASCAL_SERVICE]['input_filename'] = fn_in
-        self._services[PASCAL_SERVICE]['output_filename'] = fn_out
-
-    def _set_port_map(self):
-        """
-        Sets self._port_map with an intger value for every plugin/beta key
-        """
-        PORT = 5555
-        for key in self.plugins:
-            self._port_map[key] = PORT
-            PORT += 1
-            for beta in self.plugins[key]['betas']:
-                self._port_map[beta] = PORT
-                PORT += 1
 
     def _autoconfig(self, package_name, key):
         """

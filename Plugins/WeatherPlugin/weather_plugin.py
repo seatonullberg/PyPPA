@@ -8,28 +8,29 @@ from Plugins import base
 class WeatherPlugin(base.Plugin):
 
     def __init__(self):
-        self.COMMAND_HOOK_DICT = {'check_weather': ['check the weather',
-                                                    'what is the weather',
-                                                    "what's the weather",
-                                                    'check weather']}
-        self.MODIFIERS = {'check_weather': {'in': ['in', 'on']}}
+        self.command_hooks = {self.check_weather: ['check the weather',
+                                                   'what is the weather',
+                                                   "what's the weather",
+                                                   'check weather']}
+        self.modifiers = {self.check_weather: {'in': ['in', 'on']}}
         self.name = 'WeatherPlugin'
-        super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS,
+        super().__init__(command_hooks=self.command_hooks,
+                         modifiers=self.modifiers,
                          name=self.name)
 
     def check_weather(self):
-        if self.command_dict['modifier'] == 'in':
+        if self.command.modifier == 'in':
             # get weather for specific location
             self.get_foreign_weather()
         else:
             # get local weather
             self.get_local_weather()
-        self.pass_and_terminate(name='SleepPlugin',
-                                cmd='sleep')
+        self.sleep()
 
     def get_local_weather(self):
-        API_KEY = self.config_obj.environment_variables[self.name]['API_KEY']
+        # load environment variable
+        api_key = self.environment_variable('API_KEY')
+
         r = requests.get(r'https://geoiptool.com/')
         readable = r.text
         soup = BeautifulSoup(readable, 'html.parser')
@@ -40,7 +41,9 @@ class WeatherPlugin(base.Plugin):
         longitude = items_list[9].replace('Longitude:', '')
         latitude = latitude.strip()
         longitude = longitude.strip()
-        request_url = 'https://api.darksky.net/forecast/'+API_KEY+'/'+str(latitude)+','+str(longitude)
+        request_url = 'https://api.darksky.net/forecast/{}/{},{}'.format(api_key,
+                                                                         latitude,
+                                                                         longitude)
         headers = {'Accept-Encoding': 'gzip, deflate'}
         response = requests.get(request_url, headers=headers)
         response = json.loads(response.text)
@@ -48,15 +51,20 @@ class WeatherPlugin(base.Plugin):
         self.vocalize__weather(response)
 
     def get_foreign_weather(self):
-        API_KEY = self.config_obj.environment_variables[self.name]['API_KEY']
-        USERNAME = self.config_obj.environment_variables[self.name]['USERNAME']
-        location = self.command_dict['postmodifier']
-        response = requests.get('http://api.geonames.org/searchJSON?q='+location+'&maxRows=10&username='+USERNAME)
+        # load environment_variables
+        api_key = self.environment_variable('API_KEY')
+        username = self.environment_variable('USERNAME')
+
+        location = self.command.postmodifier
+        response = requests.get('http://api.geonames.org/searchJSON?q={}&maxRows=10&username={}'.format(location,
+                                                                                                        username))
         response = json.loads(response.text)
         response = response['geonames'][0]
         latitude = response['lat']
         longitude = response['lng']
-        request_url = 'https://api.darksky.net/forecast/'+API_KEY+'/'+str(latitude)+','+str(longitude)
+        request_url = 'https://api.darksky.net/forecast/{}/{},{}'.format(api_key,
+                                                                         latitude,
+                                                                         longitude)
         headers = {'Accept-Encoding': 'gzip, deflate'}
         response = requests.get(request_url, headers=headers)
         response = json.loads(response.text)
@@ -69,8 +77,8 @@ class WeatherPlugin(base.Plugin):
         weather_dict['precipProbability'] = str(int(float(weather_dict['precipProbability'])*100))
         weather_dict['cloudCover'] = str(int(float(weather_dict['cloudCover'])*100))
         weather_dict['windSpeed'] = str(weather_dict['windSpeed'])
-        if self.command_dict['postmodifier'] != '':
-            location = 'in {}'.format(self.command_dict['postmodifier'])
+        if self.command.postmodifier:
+            location = 'in {}'.format(self.command.postmodifier)
         else:
             location = ''
         self.vocalize('''currently {location}, the temperature is {temperature} degrees, 

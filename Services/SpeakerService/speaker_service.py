@@ -13,18 +13,13 @@ class SpeakerService(base.Service):
 
     def __init__(self):
         self.name = 'SpeakerService'
-        self.input_filename = 'vocalize.txt'
-        self.output_filename = ''   # there is no output file
-        self.delay = 0.1
         super().__init__(name=self.name,
-                         input_filename=self.input_filename,
-                         output_filename=self.output_filename,
-                         delay=self.delay)
+                         target=self.active)
 
     def active(self):
         # mimic is default
         try:
-            tts_engine = self.config_obj.environment_variables[self.name]['TTS_ENGINE']
+            tts_engine = self.environment_variable('TTS_ENGINE')
         except KeyError:
             self._mimic_tts()
             return
@@ -34,16 +29,15 @@ class SpeakerService(base.Service):
         elif tts_engine == "gtts":
             self._gtts_tts()
         else:
-            self._mimic_tts()
+            raise NotImplementedError()
 
     def _mimic_tts(self):
         mimic_path = os.path.join(os.getcwd(), 'bin', 'mimic', 'mimic')
-        subprocess.call([mimic_path, self.input_filename])
+        subprocess.call([mimic_path, "-t", self.input_data])
+        self.respond(output_data=None)
 
     def _gtts_tts(self):
-        with open(self.input_filename, 'r') as f:
-            text = f.read()
-        tts = gTTS(text=text,
+        tts = gTTS(text=self.input_data,
                    lang='en',
                    slow=False,
                    lang_check=False)

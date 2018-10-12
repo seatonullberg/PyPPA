@@ -11,14 +11,14 @@ class WebBrowserPlugin(base.Plugin):
     def __init__(self):
         self.name = 'WebBrowserPlugin'
         # remember to place the single word spelling last to avoid 'best spelling' issue
-        self.COMMAND_HOOK_DICT = {'search_google': ['search google for', 'search google', 'search for', 'google'],
+        self.command_hooks = {'search_google': ['search google for', 'search google', 'search for', 'google'],
                                   'search_netflix': ['search netflix for', 'search netflix', 'open netflix', 'netflix'],
                                   'search_youtube': ['search youtube for', 'search youtube', 'open youtube', 'youtube']}
-        self.MODIFIERS = {'search_google': {},
+        self.modifiers = {'search_google': {},
                           'search_netflix': {},
                           'search_youtube': {}}
-        super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS,
+        super().__init__(command_hooks=self.command_hooks,
+                         modifiers=self.modifiers,
                          name=self.name)
 
     def search_google(self):
