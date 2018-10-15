@@ -29,7 +29,7 @@ class WeatherPlugin(base.Plugin):
 
     def get_local_weather(self):
         # load environment variable
-        api_key = self.environment_variable('API_KEY')
+        api_key = self.request_environment_variable('API_KEY')
 
         r = requests.get(r'https://geoiptool.com/')
         readable = r.text
@@ -52,8 +52,8 @@ class WeatherPlugin(base.Plugin):
 
     def get_foreign_weather(self):
         # load environment_variables
-        api_key = self.environment_variable('API_KEY')
-        username = self.environment_variable('USERNAME')
+        api_key = self.request_environment_variable('API_KEY')
+        username = self.request_environment_variable('USERNAME')
 
         location = self.command.postmodifier
         response = requests.get('http://api.geonames.org/searchJSON?q={}&maxRows=10&username={}'.format(location,

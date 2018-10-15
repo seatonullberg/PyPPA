@@ -24,7 +24,7 @@ class NewsPlugin(base.Plugin):
         """
         Make the api call and include 'source' as a user option through modifiers
         """
-        api_key = self.environment_variable('API_KEY')
+        api_key = self.request_environment_variable('API_KEY')
         if self.command.modifier == 'by':
             # a desired source is supplied
             source = self.command.postmodifier

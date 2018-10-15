@@ -22,7 +22,7 @@ class ListenerService(base.Service):
         self.threshold = 0.1
         self.pre_buffer = None
         self.post_buffer = 1
-        self.max_dialogue = 10
+        self.maximum = 10
 
         self.name = 'ListenerService'
         self.input_filename = 'listener_params.p'
@@ -31,7 +31,20 @@ class ListenerService(base.Service):
         super().__init__(name=self.name,
                          target=self.active)
 
+    def process_data_link(self, link):
+        params_dict = link.fields['input_data']
+        if params_dict['reset_threshold']:
+            link.fields['output_data'] = self.reset_threshold()
+        else:
+            self.pre_buffer = params_dict['pre_buffer']
+            self.post_buffer = params_dict['post_buffer']
+            self.maximum = params_dict['maximum']
+            link.fields['output_data'] = self.listen_and_convert()
+        return link
+
     def active(self):
+        pass
+        '''
         params_dict = self.input_data
         if params_dict['reset_threshold']:
             # reset the noise threshold
@@ -43,6 +56,7 @@ class ListenerService(base.Service):
             result = self.listen_and_convert()
             # write the command to file for plugin to retrieve
         self.respond(result)
+        '''
 
     def get_rms(self, block):
         SHORT_NORMALIZE = (1.0 / 32768.0)
@@ -94,7 +108,7 @@ class ListenerService(base.Service):
         else:
             self.pre_buffer *= self.RATE / self.CHUNK
         self.post_buffer *= self.RATE / self.CHUNK
-        self.max_dialogue *= self.RATE / self.CHUNK
+        self.maximum *= self.RATE / self.CHUNK
 
         p = pyaudio.PyAudio()
         # make sure to use the specified input device always
@@ -124,7 +138,7 @@ class ListenerService(base.Service):
                 # noisy frame
                 dialogue_frames.append(data)
                 # if noise exceeds max dialogue timeout
-                if len(dialogue_frames) > self.max_dialogue:
+                if len(dialogue_frames) > self.maximum:
                     # print('max dialogue timeout')
                     stream.stop_stream()
                     stream.close()
@@ -162,7 +176,7 @@ class ListenerService(base.Service):
         else:
             self.pre_buffer /= self.RATE / self.CHUNK
         self.post_buffer /= self.RATE / self.CHUNK
-        self.max_dialogue /= self.RATE / self.CHUNK
+        self.maximum /= self.RATE / self.CHUNK
 
         command = self.recognize()
         try:
@@ -215,5 +229,4 @@ class ListenerService(base.Service):
         _stdev = np.std(values)
         new_threshold = _mean + (4 * _stdev)
         self.threshold = new_threshold
-        results = {'old': old_threshold, 'new': new_threshold}
-        return results
+        return {'old': old_threshold, 'new': new_threshold}

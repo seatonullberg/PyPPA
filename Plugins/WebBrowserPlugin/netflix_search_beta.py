@@ -18,7 +18,7 @@ class NetflixSearchBeta(base.BetaPlugin):
                           self.pause: {}}
         super().__init__(command_hooks=self.command_hooks,
                          modifiers=self.modifiers,
-                         name='WebBrowserPlugin.NetflixSearchPlugin')
+                         name='WebBrowserPlugin.NetflixSearchBeta')
         self.status = None
         self.monitor_queue = Queue()
         self.monitor_thread = None

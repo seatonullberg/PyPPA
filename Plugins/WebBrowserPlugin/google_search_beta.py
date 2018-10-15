@@ -16,7 +16,7 @@ class GoogleSearchBeta(base.BetaPlugin):
                           self.open: {}}
         super().__init__(command_hooks=self.command_hooks,
                          modifiers=self.modifiers,
-                         name='WebDriverPlugin.GoogleSearchBeta')
+                         name='WebBrowserPlugin.GoogleSearchBeta')
 
     def search(self):
         self.webdriver.get('https://www.google.com/search?q={}'.format(self.command.premodifier))

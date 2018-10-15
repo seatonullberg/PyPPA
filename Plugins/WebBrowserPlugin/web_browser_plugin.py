@@ -28,9 +28,9 @@ class WebBrowserPlugin(base.Plugin):
 
     def search_netflix(self):
         # set environment variables
-        netflix_email = self.environment_variable('NETFLIX_EMAIL')
-        netflix_password = self.environment_variable('NETFLIX_PASSWORD')
-        netflix_user = self.environment_variable('NETFLIX_USER')
+        netflix_email = self.request_environment_variable('NETFLIX_EMAIL')
+        netflix_password = self.request_environment_variable('NETFLIX_PASSWORD')
+        netflix_user = self.request_environment_variable('NETFLIX_USER')
 
         driver = self.webdriver
         driver.get('https://www.netflix.com/')

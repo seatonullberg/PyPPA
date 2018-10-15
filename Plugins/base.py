@@ -1,3 +1,5 @@
+import os
+import pickle
 from selenium import webdriver
 
 from utils import path
@@ -14,7 +16,7 @@ class Plugin(object):
         self.command_hooks = command_hooks
         self.modifiers = modifiers
         self.name = name
-        self.queue = None  # this gets defined by the app context
+        self.shared_dict = None  # defined by App to allow data transfer between processes
 
         # initialize attributes
         self.command = None  # used by subclasses to process the current command
@@ -30,7 +32,7 @@ class Plugin(object):
         """
         # CHROME_PROFILE_PATH = self.config_obj.environment_variables['Base']['CHROME_PROFILE_PATH']
         # chromedriver_path = os.path.join(self.local_paths.bin, 'chromedriver')
-        chromedriver_path = self.environment_variable('CHROMEDRIVER_PATH', base=True)
+        chromedriver_path = self.request_environment_variable('CHROMEDRIVER_PATH', base=True)
         # set default options
         if options is None:
             '''
@@ -52,46 +54,38 @@ class Plugin(object):
         driver = webdriver.Chrome(executable_path=chromedriver_path, options=options)
         return driver
 
-    def start(self, queue):
+    def start(self, shared_dict):
         """
         Keep the plugin process active
         - should only be called by the app context
         """
-        self.queue = queue
-
+        self.shared_dict = shared_dict
         while True:
-            command = ''
-            # check queue for new requests
-            if self.queue.server_empty() and self.is_active:
-                command = self.get_command()
-            else:
-                request = self.queue.server_get()
-                if type(request) == communication.PluginRequest:  # process plugin request
-                    self.is_active = True
-                    command_string = request.command_string  # get command from the request
-                    command = Command(input_string=command_string,
-                                      command_hooks=self.command_hooks,
-                                      modifiers=self.modifiers)
-                    command.parse()
-                elif type(request) == communication.CommandAcceptanceRequest:  # process command accept request
-                    cmd = request.command_string
-                    result = self._accepts_command(cmd)
-                    request.accepts = result  # set the request's attribute prior to responding
-                else:
-                    raise NotImplementedError()
+            self.command = None
+            for key, link in self.shared_dict.items():
+                if link.consumer == self.name and not link.complete:
+                    link = self.shared_dict.pop(key)
+                    self._process_link(link)
+            if self.is_active:
+                if self.command is None:
+                    self.command = self.get_command()
+                if self._accepts_command(self.command):
+                    self.command.command_hook()
+                print(self.is_active)
 
-                request.respond(self.queue)
-
-            # execute any detected command
-            if self._accepts_command(command):
-                self.command = command
-                command.command_hook()
+    # TODO:
+    def process_data_link(self, link):
+        """
+        This method describes the package's response to an arbitrary DataRequest
+        :param request: (communication.DataRequest)
+        """
+        return link
 
     ############
     # WRAPPERS #
     ############
 
-    def request_plugin(self, plugin_name=None, command_string=None):
+    def request_plugin(self, plugin_name, command_string):
         """
         Sends PluginRequest and sets self.is_active = False
         :param plugin_name: (str) name of the Plugin to initialize
@@ -101,58 +95,58 @@ class Plugin(object):
         self.is_active = False
         if plugin_name is None:
             for pname in self.configuration.plugins:
-                accepts = self.request_command_acceptance(plugin_name=pname,
-                                                          command_string=command_string)
-                if accepts:
+                response = self.request_acceptance(plugin_name=pname, command_string=command_string)
+                if response.fields['result']:
                     plugin_name = pname
                     break
 
         if plugin_name is None:
             raise ValueError("none of the installed plugins accept the command: {}".format(command_string))
 
-        request = communication.PluginRequest(plugin_name=plugin_name,
-                                              command_string=command_string)
-        request.send(self.queue)
+        request = communication.PluginLink(producer=self.name,
+                                           consumer=plugin_name,
+                                           command_string=command_string)
+        request.key = id(request)
+        self.shared_dict[request.key] = request
+        self._wait_response(request.key)  # no need to get return value in this case
 
-    def request_data(self, package_name, data):
+    def request_data(self, package_name, input_data):
         """
         Sends DataRequest and awaits response
         :param package_name: (str) name of Service or Plugin to send data to
-        :param data: object to send to the service from processing
+        :param input_data: object to send to the service from processing
         :return: response from service
         """
-        request = communication.DataRequest(send_name=package_name,
-                                            return_name=self.name,
-                                            data=data)
-        request.send(self.queue)
-        while self.queue.server_empty():  # all services must out some response in queue to proceed
-            continue
-        result = self.queue.server_get()
-        return result.data
+        request = communication.DataLink(producer=self.name,
+                                         consumer=package_name,
+                                         input_data=input_data)
+        request.key = id(request)
+        self.shared_dict[request.key] = request
+        return self._wait_response(request.key)
 
-    def request_command_acceptance(self, plugin_name, command_string):
+    def request_acceptance(self, plugin_name, command_string):
         """
         Requests if plugin_name accepts the proposed command
         :param plugin_name: (str) Plugin to send to
         :param command_string: (str) command to test
         :return: (bool) indicating is command is accepted
         """
-        request = communication.CommandAcceptanceRequest(plugin_name=plugin_name,
-                                                         return_name=self.name,
-                                                         command_string=command_string)
-        request.send(self.queue)
-        while self.queue.server_empty():
-            continue
-        result = self.queue.server_get()
-        return result.accepts
+        request = communication.AcceptanceLink(producer=self.name,
+                                               consumer=plugin_name,
+                                               command_string=command_string)
+        request.key = id(request)
+        self.shared_dict[request.key] = request
+        return self._wait_response(request.key)
 
-    def environment_variable(self, key, base=False):
-        """
-        Reads an environment variable from the configuration
-        :param key: (str) the environment variable key/name
-        :param base: (bool) indicates if the environment variable is a base environment variable
-        :return: (str) the requested environment variable value
-        """
+    def request_cache(self, package_name):
+        # not a real request type
+        cache_file = os.path.join(self.local_paths.tmp, "{}.cache".format(package_name))
+        with open(cache_file, 'rb') as stream:
+            result = pickle.load(stream)
+        return result
+
+    def request_environment_variable(self, key, base=False):
+        # not a real request type
         if base:
             value = self.configuration.environment_variables['Base'][key]
         else:
@@ -174,9 +168,8 @@ class Plugin(object):
                        'maximum': maximum,
                        'reset_threshold': False}
         response = self.request_data("ListenerService", params_dict)
-
         # convert to Command object
-        command = Command(input_string=response,
+        command = Command(input_string=response.fields['output_data'],
                           command_hooks=self.command_hooks,
                           modifiers=self.modifiers)
         command.parse()
@@ -189,7 +182,8 @@ class Plugin(object):
         """
         threshold_dict = {'reset_threshold': True}
         response = self.request_data("ListenerService", threshold_dict)
-        print("old threshold: {}\nnew threshold: {}".format(response['old'], response['new']))
+        threshold = response.fields['output_data']
+        print("old threshold: {}\nnew threshold: {}".format(threshold['old'], threshold['new']))
 
     def vocalize(self, text):
         """
@@ -208,6 +202,48 @@ class Plugin(object):
     ###################
     # PRIVATE METHODS #
     ###################
+
+    def _wait_response(self, key):
+        while True:
+            for _key, link in self.shared_dict.items():
+                if _key == key and link.complete:
+                    result = self.shared_dict.pop(key)
+                    return result
+
+    def _process_link(self, link):
+        # plugin
+        if isinstance(link, communication.PluginLink):
+            link = self._process_plugin_link(link)
+        # data
+        elif isinstance(link, communication.DataLink):
+            link = self._process_data_link(link)
+        # acceptance
+        elif isinstance(link, communication.AcceptanceLink):
+            link = self._process_acceptance_link(link)
+        # error
+        else:
+            raise TypeError("unsupported link type: {}".format(type(link)))
+
+        link.complete = True
+        self.shared_dict[link.key] = link
+
+    def _process_plugin_link(self, link):
+        self.is_active = True
+        command = Command(input_string=link.fields['command_string'],
+                          command_hooks=self.command_hooks,
+                          modifiers=self.modifiers)
+        command.parse()
+        self.command = command
+        return link
+
+    def _process_data_link(self, link):
+        # developers will have to define their own interactions with the data request
+        self.process_data_link(link)
+        return link
+
+    def _process_acceptance_link(self, link):
+        link.fields['result'] = self._accepts_command(link.fields['command_string'])
+        return link
 
     def _accepts_command(self, command):
         """

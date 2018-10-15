@@ -16,10 +16,21 @@ class SpeakerService(base.Service):
         super().__init__(name=self.name,
                          target=self.active)
 
+    def process_data_link(self, link):
+        tts_engine = self.request_environment_variable('TTS_ENGINE')
+        if tts_engine == "mimic":
+            self._mimic_tts(link.fields['input_data'])
+        elif tts_engine == "gtts":
+            self._gtts_tts(link.fields['input_data'])
+        else:
+            raise NotImplementedError()
+        return link
+
     def active(self):
+        '''
         # mimic is default
         try:
-            tts_engine = self.environment_variable('TTS_ENGINE')
+            tts_engine = self.request_environment_variable('TTS_ENGINE')
         except KeyError:
             self._mimic_tts()
             return
@@ -30,14 +41,14 @@ class SpeakerService(base.Service):
             self._gtts_tts()
         else:
             raise NotImplementedError()
+        '''
 
-    def _mimic_tts(self):
+    def _mimic_tts(self, text):
         mimic_path = os.path.join(os.getcwd(), 'bin', 'mimic', 'mimic')
-        subprocess.call([mimic_path, "-t", self.input_data])
-        self.respond(output_data=None)
+        subprocess.call([mimic_path, "-t", text])
 
-    def _gtts_tts(self):
-        tts = gTTS(text=self.input_data,
+    def _gtts_tts(self, text):
+        tts = gTTS(text=text,
                    lang='en',
                    slow=False,
                    lang_check=False)

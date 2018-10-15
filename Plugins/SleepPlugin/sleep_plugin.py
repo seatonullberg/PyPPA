@@ -28,7 +28,7 @@ class SleepPlugin(base.Plugin):
         cmd = self.get_command()
         print(cmd.input_string)
 
-        self.request_plugin(command_string=cmd.input_string)  # request the first plugin to accept the command
+        self.request_plugin(command_string=cmd.input_string, plugin_name=None)  # request the first plugin to accept the command
 
     def sleep(self):
         """
