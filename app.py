@@ -15,7 +15,6 @@ class App(object):
         # initialize attributes
         self.plugins = {}
         self.betas = {}
-        self.services = {}
 
         # build a new configuration
         config = base.Configuration()
@@ -30,12 +29,7 @@ class App(object):
         # load instances of all required betas
         for name in self.configuration.betas:
             beta = self._import_package(name)
-            self.betas[name] = beta  # store plugin types locally
-
-        # load instances of all the required services
-        for name in self.configuration.services:
-            service = self._import_package(name)
-            self.services[name] = service  # store service types locally
+            self.betas[name] = beta  # store beta types locally
 
     def start(self):
         """
@@ -43,18 +37,10 @@ class App(object):
         """
         package_names = [p for p in self.plugins]
         package_names += [b for b in self.betas]
-        package_names += [s for s in self.services]
 
         # use a shared dict to transfer Link obects between processes
         manager = multiprocessing.Manager()
         shared_dict = manager.dict()  # initialize the shared list
-
-        # start all the services
-        for name, obj in self.services.items():
-            service = obj()
-            service.configuration = self.configuration
-            process = multiprocessing.Process(target=service.start, args=(shared_dict,))
-            process.start()
 
         # start all the plugins
         for name, obj in self.plugins.items():
@@ -71,6 +57,7 @@ class App(object):
             process.start()
 
         # activate sleep plugin to get started
+        # using app as producer is a hack because producer isnt really necessary for PluginLinks
         request = communication.PluginLink(producer='app', consumer='SleepPlugin', command_string='sleep')
         shared_dict[id(request)] = request
 
@@ -86,10 +73,6 @@ class App(object):
         """
         if name.endswith("Plugin"):
             a = "Plugins"
-            b = name
-            c = string.pascal_case_to_snake_case(name)
-        elif name.endswith("Service"):
-            a = "Services"
             b = name
             c = string.pascal_case_to_snake_case(name)
         elif name.endswith("Beta"):

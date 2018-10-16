@@ -5,11 +5,11 @@ import wave
 import os
 import numpy as np
 import copy
-from Services import base
+
+from Plugins import base
 
 
-# TODO: better handle tmp files
-class ListenerService(base.Service):
+class ListenerPlugin(base.Plugin):
 
     def __init__(self):
         self.CHUNK = 2048
@@ -24,12 +24,8 @@ class ListenerService(base.Service):
         self.post_buffer = 1
         self.maximum = 10
 
-        self.name = 'ListenerService'
-        self.input_filename = 'listener_params.p'
-        self.output_filename = 'command.txt'
-        self.delay = 0.1
-        super().__init__(name=self.name,
-                         target=self.active)
+        self.name = 'ListenerPlugin'
+        super().__init__(name=self.name, command_hooks={}, modifiers={})  # it is ok for plugins to not have comands
 
     def process_data_link(self, link):
         params_dict = link.fields['input_data']
@@ -41,22 +37,6 @@ class ListenerService(base.Service):
             self.maximum = params_dict['maximum']
             link.fields['output_data'] = self.listen_and_convert()
         return link
-
-    def active(self):
-        pass
-        '''
-        params_dict = self.input_data
-        if params_dict['reset_threshold']:
-            # reset the noise threshold
-            result = self.reset_threshold()
-        else:
-            self.pre_buffer = params_dict['pre_buffer']
-            self.post_buffer = params_dict['post_buffer']
-            self.max_dialogue = params_dict['maximum']
-            result = self.listen_and_convert()
-            # write the command to file for plugin to retrieve
-        self.respond(result)
-        '''
 
     def get_rms(self, block):
         SHORT_NORMALIZE = (1.0 / 32768.0)

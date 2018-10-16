@@ -1,3 +1,8 @@
+# TODO: REMOVE SERVICES ENTIRELY
+# - services are essentially plugins without commands and should be constructed as such
+# - no need for distinction now that all packages run conc.
+
+
 import os
 import datetime
 import pickle
@@ -70,8 +75,9 @@ class Service(object):
         request = communication.DataLink(producer=self.name,
                                          consumer=package_name,
                                          input_data=input_data)
-        self.shared_dict[id(request)] = request
-        return self._wait_response(_id=id(request))
+        request.key = id(request)
+        self.shared_dict[request.key] = request
+        return self._wait_response(request.key)
 
     def request_environment_variable(self, key, base=False):
         """

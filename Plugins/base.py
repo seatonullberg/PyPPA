@@ -1,6 +1,5 @@
 import os
 import pickle
-from selenium import webdriver
 
 from utils import path
 from utils import communication
@@ -24,39 +23,9 @@ class Plugin(object):
         self.is_active = False  # indicates if the mainloop has started in a new process
         self.local_paths = path.LocalPaths()  # convenience object to return paths
 
-    @property
-    def webdriver(self, options=None):
-        """
-        Generates a selenium.webdriver object
-        :return: selenium.webdriver object
-        """
-        # CHROME_PROFILE_PATH = self.config_obj.environment_variables['Base']['CHROME_PROFILE_PATH']
-        # chromedriver_path = os.path.join(self.local_paths.bin, 'chromedriver')
-        chromedriver_path = self.request_environment_variable('CHROMEDRIVER_PATH', base=True)
-        # set default options
-        if options is None:
-            '''
-            options = webdriver.ChromeOptions()
-            options.add_argument("--user-data-dir={}".format(CHROME_PROFILE_PATH))
-            options.add_argument("--disable-infobars")
-            options.add_argument("--window-size=1920,1080")
-            options.add_experimental_option('excludeSwitches', ['disable-component-update'])
-            '''
-            # options = webdriver.chrome.options.Options()
-            options = webdriver.ChromeOptions()
-            options.add_argument('--no-sandbox')
-            options.add_argument('--no-default-browser-check')
-            options.add_argument('--disable-gpu')
-            options.add_argument('--disable-extensions')
-            options.add_argument('--disable-default-apps')
-            options.add_argument("--window-size=1920,1080")
-
-        driver = webdriver.Chrome(executable_path=chromedriver_path, options=options)
-        return driver
-
     def start(self, shared_dict):
         """
-        Keep the plugin process active
+        Keeps the plugin process active
         - should only be called by the app context
         """
         self.shared_dict = shared_dict
@@ -68,22 +37,13 @@ class Plugin(object):
                     self._process_link(link)
             if self.is_active:
                 if self.command is None:
-                    self.command = self.get_command()
+                    self.command = self.request_command()
                 if self._accepts_command(self.command):
                     self.command.command_hook()
-                print(self.is_active)
 
-    # TODO:
-    def process_data_link(self, link):
-        """
-        This method describes the package's response to an arbitrary DataRequest
-        :param request: (communication.DataRequest)
-        """
-        return link
-
-    ############
-    # WRAPPERS #
-    ############
+    ##############
+    # SEND LINKS #
+    ##############
 
     def request_plugin(self, plugin_name, command_string):
         """
@@ -138,12 +98,9 @@ class Plugin(object):
         self.shared_dict[request.key] = request
         return self._wait_response(request.key)
 
-    def request_cache(self, package_name):
-        # not a real request type
-        cache_file = os.path.join(self.local_paths.tmp, "{}.cache".format(package_name))
-        with open(cache_file, 'rb') as stream:
-            result = pickle.load(stream)
-        return result
+    #################
+    # GET RESOURCES #
+    #################
 
     def request_environment_variable(self, key, base=False):
         # not a real request type
@@ -153,7 +110,7 @@ class Plugin(object):
             value = self.configuration.environment_variables[self.name][key]
         return value
 
-    def get_command(self, pre_buffer=None, post_buffer=1, maximum=10):
+    def request_command(self, pre_buffer=None, post_buffer=1, maximum=10):
         """
         Wraps ListenerService to collect vocal command from user via microphone
         :param pre_buffer: seconds to wait for command without hearing anything
@@ -167,7 +124,7 @@ class Plugin(object):
                        'post_buffer': post_buffer,
                        'maximum': maximum,
                        'reset_threshold': False}
-        response = self.request_data("ListenerService", params_dict)
+        response = self.request_data("ListenerPlugin", params_dict)
         # convert to Command object
         command = Command(input_string=response.fields['output_data'],
                           command_hooks=self.command_hooks,
@@ -176,12 +133,33 @@ class Plugin(object):
         self.command = command
         return command
 
+    def to_cache(self, obj):
+        """
+        Pickles an object to a .cache file for persistence
+        :param obj: arbitrary object to cache
+        """
+        cache_file = os.path.join(self.local_paths.tmp, "{}.cache".format(self.name))
+        with open(cache_file, 'wb') as stream:
+            pickle.dump(obj=obj, file=stream)
+
+    def from_cache(self, plugin_name):
+        """
+        Loads a pickle from cache file
+        :param plugin_name: name of the plugin's cache to load from
+        :return: cached object
+        """
+        cache_file = os.path.join(self.local_paths.tmp, "{}.cache".format(plugin_name))
+        with open(cache_file, 'rb') as stream:
+            result = pickle.load(stream)
+        return result
+
+    # irrelevent return value so the request_... style doesnt fit
     def reset_threshold(self):
         """
         Wraps ListenerService to reset the noise/signal threshold
         """
         threshold_dict = {'reset_threshold': True}
-        response = self.request_data("ListenerService", threshold_dict)
+        response = self.request_data("ListenerPlugin", threshold_dict)
         threshold = response.fields['output_data']
         print("old threshold: {}\nnew threshold: {}".format(threshold['old'], threshold['new']))
 
@@ -190,7 +168,7 @@ class Plugin(object):
         Wraps SpeakerService to use TTS engine
         :param text: (str) words to be spoken by TTS
         """
-        self.request_data("SpeakerService", text)  # SpeakerService returns None
+        self.request_data("SpeakerPlugin", text)  # SpeakerService returns None
 
     def sleep(self):
         """
@@ -199,16 +177,17 @@ class Plugin(object):
         self.request_plugin(plugin_name='SleepPlugin',
                             command_string='sleep')
 
-    ###################
-    # PRIVATE METHODS #
-    ###################
+    #################
+    # PROCESS LINKS #
+    #################
 
-    def _wait_response(self, key):
-        while True:
-            for _key, link in self.shared_dict.items():
-                if _key == key and link.complete:
-                    result = self.shared_dict.pop(key)
-                    return result
+    # TODO: implement some sort of data processing manager that is separate from plugin
+    def process_data_link(self, link):
+        """
+        This method describes the package's response to an arbitrary DataRequest
+        :param request: (communication.DataRequest)
+        """
+        return link
 
     def _process_link(self, link):
         # plugin
@@ -244,6 +223,13 @@ class Plugin(object):
     def _process_acceptance_link(self, link):
         link.fields['result'] = self._accepts_command(link.fields['command_string'])
         return link
+
+    def _wait_response(self, key):
+        while True:
+            for _key, link in self.shared_dict.items():
+                if _key == key and link.complete:
+                    result = self.shared_dict.pop(key)
+                    return result
 
     def _accepts_command(self, command):
         """
@@ -281,6 +267,7 @@ class BetaPlugin(Plugin):
         # process args
         self.command_hooks = command_hooks
         self.modifiers = modifiers
+
         # add exit context as a command for all betas
         self.command_hooks[self.exit_context] = ['exit context']
         self.modifiers[self.exit_context] = {}
@@ -295,7 +282,7 @@ class BetaPlugin(Plugin):
         Returns control to the alpha Plugin
         """
         alpha_name = self.name.split('.')[0]
-        self.request_plugin(alpha_name)
+        self.request_plugin(alpha_name, command_string='')
 
 
 class Command(object):

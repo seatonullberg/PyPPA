@@ -4,17 +4,16 @@ from pyaudio import PyAudio
 import wave
 import os
 import subprocess
-from Services import base
+from Plugins import base
 
 
-class SpeakerService(base.Service):
+class SpeakerPlugin(base.Plugin):
     # there is no default behavior and no output file
     # output is through the speakers
 
     def __init__(self):
-        self.name = 'SpeakerService'
-        super().__init__(name=self.name,
-                         target=self.active)
+        self.name = 'SpeakerPlugin'
+        super().__init__(name=self.name, command_hooks={}, modifiers={})  # ok for plugins to not have commands
 
     def process_data_link(self, link):
         tts_engine = self.request_environment_variable('TTS_ENGINE')
@@ -25,23 +24,6 @@ class SpeakerService(base.Service):
         else:
             raise NotImplementedError()
         return link
-
-    def active(self):
-        '''
-        # mimic is default
-        try:
-            tts_engine = self.request_environment_variable('TTS_ENGINE')
-        except KeyError:
-            self._mimic_tts()
-            return
-
-        if tts_engine == "mimic":
-            self._mimic_tts()
-        elif tts_engine == "gtts":
-            self._gtts_tts()
-        else:
-            raise NotImplementedError()
-        '''
 
     def _mimic_tts(self, text):
         mimic_path = os.path.join(os.getcwd(), 'bin', 'mimic', 'mimic')

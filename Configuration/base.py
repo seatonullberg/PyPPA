@@ -15,7 +15,6 @@ class Configuration(object):
         self._environment_variables = {}
         self._plugins = []
         self._betas = []
-        self._services = []
         self._blacklist = []
         self.local_paths = path.LocalPaths()
 
@@ -42,10 +41,6 @@ class Configuration(object):
         return self._betas
 
     @property
-    def services(self):
-        return self._services
-
-    @property
     def blacklist(self):
         return self._blacklist
 
@@ -65,9 +60,7 @@ class Configuration(object):
 
         self._scan_base()
         self._scan_plugins()
-        self._scan_services()
         self._write_yaml()
-        # self._write_pickle()  # should no longer need to pickle since Configuration is stored by App Context
 
         if os.path.isfile(self.log_path):
             raise exceptions.ConfigurationError("The configuration is incomplete. "
@@ -91,10 +84,8 @@ class Configuration(object):
         to_yaml['ENVIRONMENT_VARIABLES'] = self.environment_variables
         # add blacklist
         plugin_packages = os.listdir(self.local_paths.plugins)
-        service_packages = os.listdir(self.local_paths.services)
-        packages = plugin_packages + service_packages
         blacklist_as_dict = {}
-        for pkg in packages:
+        for pkg in plugin_packages:
             if pkg in self.blacklist:
                 blacklist_as_dict[pkg] = True
             else:
@@ -127,28 +118,12 @@ class Configuration(object):
         plugin_pkgs = os.listdir(self.local_paths.plugins)
         plugin_pkgs = [pkg for pkg in plugin_pkgs if pkg not in self.blacklist]
         plugin_pkgs.remove('base.py')
-        plugin_pkgs.remove('base.old.py')
-        plugin_pkgs.remove('base.old.old.py')
         plugin_pkgs.remove('README.md')
         plugin_pkgs.remove('__pycache__')
         for pkg in plugin_pkgs:
             self._plugins.append(pkg)
             self._set_environment_variables(pkg)
             self._set_beta_plugins(pkg)
-
-    def _scan_services(self):
-        """
-        Collects the required configuration information from all services in /Services/
-        """
-        service_pkgs = os.listdir(self.local_paths.services)
-        service_pkgs = [pkg for pkg in service_pkgs if pkg not in self.blacklist]
-        service_pkgs.remove('base.py')
-        service_pkgs.remove('base.old.py')
-        service_pkgs.remove('README.md')
-        service_pkgs.remove('__pycache__')
-        for pkg in service_pkgs:
-            self._services.append(pkg)
-            self._set_environment_variables(pkg)
 
     def _set_environment_variables(self, package_name):
         """
@@ -165,8 +140,6 @@ class Configuration(object):
 
         if package_name.endswith('Plugin'):
             environment_path = environment_path.format('Plugins')
-        elif package_name.endswith('Service'):
-            environment_path = environment_path.format('Services')
         else:
             raise ValueError("invalid package_name: {}".format(package_name))
 
@@ -212,9 +185,6 @@ class Configuration(object):
         import_str = "{}.{}.autoconfig"
         if package_name.endswith('Plugin'):
             import_str = import_str.format('Plugins',
-                                           package_name)
-        elif package_name.endswith('Service'):
-            import_str = import_str.format('Services',
                                            package_name)
         else:
             raise ValueError("invalid package_name")
