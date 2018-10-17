@@ -104,10 +104,13 @@ class Plugin(object):
 
     def request_environment_variable(self, key, base=False):
         # does not actually make a request but fits the naming convention
+        name = self.name
+        if name.endswith('Beta'):
+            name = name.split('.')[0]
         if base:
             value = self.configuration.environment_variables['Base'][key]
         else:
-            value = self.configuration.environment_variables[self.name][key]
+            value = self.configuration.environment_variables[name][key]
         return value
 
     def request_command(self, pre_buffer=None, post_buffer=1, maximum=10):

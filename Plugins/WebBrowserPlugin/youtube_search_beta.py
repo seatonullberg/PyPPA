@@ -1,5 +1,4 @@
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.keys import Keys
+from utils import web
 from Plugins import base
 
 
@@ -14,11 +13,16 @@ class YoutubeSearchBeta(base.BetaPlugin):
         super().__init__(command_hooks=self.command_hooks,
                          modifiers=self.modifiers,
                          name='WebBrowserPlugin.YoutubeSearchBeta')
+        self.webdriver = None
 
     def search(self):
+        if self.webdriver is None:
+            self.webdriver = web.WebDriver(self.configuration)
         self.webdriver.get('https://www.youtube.com/results?search_query={}'.format(self.command.premodifier))
 
     def play(self):
+        if self.webdriver is None:
+            self.webdriver = web.WebDriver(self.configuration)
         # iterate through available links
         links = self.webdriver.find_elements_by_id('video-title')
         for link in links:
