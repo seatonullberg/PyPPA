@@ -1,0 +1,1 @@
+Contains yaml files that describe recognizable people.

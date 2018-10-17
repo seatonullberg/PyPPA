@@ -1,55 +1,66 @@
-from base_beta import BaseBeta
+import selenium
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 import pyautogui
 from threading import Thread
 from queue import Queue
 import pickle
+from Plugins import base
+from utils import web
 
 
-class NetflixSearchBeta(BaseBeta):
+class NetflixSearchBeta(base.BetaPlugin):
 
     def __init__(self):
-        self.COMMAND_HOOK_DICT = {'search': ['search for', 'search'],
-                                  'play': ['play'],
-                                  'pause': ['pause', 'resume', 'start', 'stop']}
-        self.MODIFIERS = {'search': {},
-                          'play': {'position': ['position']},
-                          'pause': {}}
-        super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS,
-                         name='netflix_search_beta',
-                         alpha_name='WebBrowserPlugin')
+        self.command_hooks = {self.search: ['search for', 'search'],
+                              self.play: ['play'],
+                              self.pause: ['pause', 'resume', 'start', 'stop']}
+        self.modifiers = {self.search: {},
+                          self.play: {'position': ['position']},
+                          self.pause: {}}
+        super().__init__(command_hooks=self.command_hooks,
+                         modifiers=self.modifiers,
+                         name='WebBrowserPlugin.NetflixSearchBeta')
         self.status = None
         self.monitor_queue = Queue()
         self.monitor_thread = None
+        self.webdriver = None
+        self.logged_in = False
 
     def search(self):
-        driver = self.DATA
-        driver.get('https://www.netflix.com/search?q={}'.format(self.command_dict['premodifier']))
+        if self.webdriver is None:
+            self.webdriver = web.WebDriver(self.configuration)
+        if not self.logged_in:
+            self._login()
+        self.webdriver.get('https://www.netflix.com/search?q={}'.format(self.command.premodifier))
         self.status = 'search'
 
-    # TODO
     def play(self):
-        driver = self.DATA
+        if self.webdriver is None:
+            self.webdriver = web.WebDriver(self.configuration)
+        if not self.logged_in:
+            self._login()
         # use row, column position notation to specify a show tile frm search
-        if self.command_dict['modifier'] == 'position':
+        if self.command.modifier == 'position':
             try:
-                row, col = self.command_dict['postmodifier'].split(' ')
+                row, col = self.command.postmodifier.split(' ')
                 print(row, col)
             except ValueError:
                 return
         # do a search for the name and open the first result
         else:
-            driver.get('https://www.netflix.com/search?q={}'.format(self.command_dict['premodifier']))
+            self.webdriver.get('https://www.netflix.com/search?q={}'.format(self.command.premodifier))
             # click the first panel
-            title_card = driver.find_element_by_xpath('//div[@id="title-card-0-0"]')
-            ActionChains(driver).move_to_element(title_card).perform()
-            play_link = driver.find_element_by_xpath('//div[@id="title-card-0-0"]/div/a')
+            title_card = self.webdriver.find_element_by_xpath('//div[@id="title-card-0-0"]')
+            ActionChains(self.webdriver).move_to_element(title_card).perform()
+            play_link = self.webdriver.find_element_by_xpath('//div[@id="title-card-0-0"]/div/a')
             play_link = play_link.get_attribute('href')
-            driver.get(play_link)
+            self.webdriver.get(play_link)
             # go full screen
-            driver.maximize_window()
+            self.webdriver.maximize_window()
             # Press spacebar to start right away
             self.pause()
         self.status = 'play'
@@ -59,20 +70,58 @@ class NetflixSearchBeta(BaseBeta):
             self.monitor_thread.start()
 
     def pause(self):
-        driver = self.DATA
         # click on netflix page in blank location to ensure the signal works
         pyautogui.click(x=300, y=300)
         # now send spacebar signal to pause
-        ActionChains(driver).key_down(Keys.SPACE).key_up(Keys.SPACE).perform()
+        ActionChains(self.webdriver).key_down(Keys.SPACE).key_up(Keys.SPACE).perform()
 
     def annotate(self):
         # use when interrogative is done
         raise NotImplementedError()
 
-    def exit_context(self, cmd=None):
+    def exit_context(self):
+        if self.webdriver is not None:
+            self.webdriver.quit()
+        self.logged_in = False
         self.monitor_queue.put('quit')
-        self.DATA.quit()
-        super().exit_context(cmd)
+        super().exit_context()
+
+    def _login(self):
+        if self.webdriver is None:
+            self.webdriver = web.WebDriver(self.configuration)
+
+        # set environment variables
+        netflix_email = self.request_environment_variable('NETFLIX_EMAIL')
+        netflix_password = self.request_environment_variable('NETFLIX_PASSWORD')
+        netflix_user = self.request_environment_variable('NETFLIX_USER')
+
+        driver = self.webdriver
+        driver.get('https://www.netflix.com/')
+        # move to corner for easy cursor manipulation later
+        driver.set_window_position(x=0, y=0)
+
+        # sign in
+        try:
+            driver.find_element_by_link_text('Sign In').click()
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'login-body')))
+            login_email_element = driver.find_element_by_id('id_userLoginId')
+            login_password_element = driver.find_element_by_id('id_password')
+            login_email_element.send_keys(netflix_email)
+            login_password_element.send_keys(netflix_password)
+            driver.find_element_by_xpath("*//button[contains(text(),'Sign In')]").click()
+        except selenium.common.exceptions.NoSuchElementException:
+            print('already logged in')
+
+        # select my profile
+        try:
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'profile-icon')))
+            driver.find_element_by_xpath("//span[text()='{}']".format(netflix_user)).click()
+        except selenium.common.exceptions.NoSuchElementException:
+            print('already selected account')
+
+        # wait for search to be available
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'searchTab')))
+        self.logged_in = True
 
     def _monitor_viewers(self, q):
         initial_viewer = None
@@ -83,11 +132,13 @@ class NetflixSearchBeta(BaseBeta):
             if not q.empty():
                 if q.get() == 'quit':
                     break
+            # get frame data from cache
+            frame_data = self.from_cache('WatcherPlugin')
 
             # TODO: the pickle errors should be handled in Watcher
             # load the frame data from pickle file
             try:
-                face_names = self.frame_data['face_names']
+                face_names = frame_data['face_names']
             except pickle.UnpicklingError:
                 face_names = []
             except EOFError:

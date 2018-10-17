@@ -1,0 +1,13 @@
+requests
+bs4
+selenium
+pyautogui
+pyaudio
+numpy
+pydub
+gtts
+cv2
+dlib
+yaml
+scipy
+sklearn

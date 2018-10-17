@@ -3,3 +3,4 @@ chromeprofile
 mimic
 python3.6.5
 requests
+frontal_face_cascade

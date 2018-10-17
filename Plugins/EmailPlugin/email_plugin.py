@@ -1,22 +1,22 @@
 import imaplib
 import email
-from base_plugin import BasePlugin
+from Plugins import base
 
 
-class EmailPlugin(BasePlugin):
+class EmailPlugin(base.Plugin):
 
     def __init__(self):
         self.name = 'EmailPlugin'
-        self.COMMAND_HOOK_DICT = {'check_email': ['check my emails', 'check my email',
-                                                  'get my emails', 'get my email']}
-        self.MODIFIERS = {'check_email': {}}
+        self.command_hooks = {'check_email': ['check my emails', 'check my email',
+                                              'get my emails', 'get my email']}
+        self.modifiers = {'check_email': {}}
         super().__init__(name=self.name,
-                         command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS)
+                         command_hooks=self.command_hooks,
+                         modifiers=self.modifiers)
 
     def check_email(self):
-        PASSWORD = self.config_obj.environment_variables['EmailPlugin']['PASSWORD']
-        EMAIL = self.config_obj.environment_variables['EmailPlugin']['EMAIL']
+        PASSWORD = self.get_environment_variable('PASSWORD')
+        EMAIL = self.get_environment_variable('EMAIL')
         SMTP_SERVER = EMAIL.split('@')[-1]
         SMTP_SERVER = "imap."+SMTP_SERVER
 

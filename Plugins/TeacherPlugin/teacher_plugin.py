@@ -1,27 +1,30 @@
 import wikipedia
 import requests
 from bs4 import BeautifulSoup
-from base_plugin import BasePlugin
+
+from Plugins import base
 
 
-class TeacherPlugin(BasePlugin):
+class TeacherPlugin(base.Plugin):
 
     def __init__(self):
+        """
+        Scrapes wikipedia or wikihow to provide information on a requested topic
+        """
         self.name = 'TeacherPlugin'
-        self.COMMAND_HOOK_DICT = {'teach_me': ['teach me about', 'teach me']}
-        self.MODIFIERS = {'teach_me': {'how_to': ['how too', 'hot to', 'hot too', 'how to']}}
-        super().__init__(command_hook_dict=self.COMMAND_HOOK_DICT,
-                         modifiers=self.MODIFIERS,
+        self.command_hooks = {self.teach_me: ['teach me about', 'teach me']}
+        self.modifiers = {self.teach_me: {'how_to': ['how too', 'hot to', 'hot too', 'how to']}}
+        super().__init__(command_hooks=self.command_hooks,
+                         modifiers=self.modifiers,
                          name=self.name)
 
     def teach_me(self):
-        if self.command_dict['modifier'] == 'how_to':
-            self.scrape_wikihow(self.command_dict['postmodifier'])
+        if self.command.modifier == 'how_to':
+            self.scrape_wikihow(self.command.postmodifier)
         else:
-            self.basic_teach(self.command_dict['premodifier'])
-        # terminate after one use
-        self.pass_and_terminate(name='SleepPlugin',
-                                cmd='sleep')
+            self.basic_teach(self.command.premodifier)
+
+        self.sleep()
 
     def basic_teach(self, query):
         try:
