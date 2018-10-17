@@ -11,10 +11,7 @@ class WatcherPlugin(base.Plugin):
     def __init__(self):
         self.name = 'WatcherPlugin'
         super().__init__(name=self.name, command_hooks={}, modifiers={})  # ok for plugin to not have commands
-
-    def start(self, queue):
         multiprocessing.Process(target=self._process_video).start()
-        super().start(self.shared_dict)
 
     def _process_video(self):
         data_processing_queue = parallelization.TwoWayProcessQueue()
