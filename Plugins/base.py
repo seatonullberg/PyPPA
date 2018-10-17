@@ -153,7 +153,12 @@ class Plugin(object):
         """
         cache_file = os.path.join(self.local_paths.tmp, "{}.cache".format(plugin_name))
         with open(cache_file, 'rb') as stream:
-            result = pickle.load(stream)
+            try:
+                result = pickle.load(stream)
+            except EOFError:
+                result = None
+            except pickle.UnpicklingError:
+                result = None
         return result
 
     def reset_threshold(self):
@@ -272,33 +277,6 @@ class Plugin(object):
             accept = False
 
         return accept
-
-
-class BetaPlugin(Plugin):
-    """
-    Refer to /Plugins/README.md for in depth documentation on this object
-    """
-
-    def __init__(self, command_hooks, modifiers, name):
-        # process args
-        self.command_hooks = command_hooks
-        self.modifiers = modifiers
-
-        # add exit context as a command for all betas
-        self.command_hooks[self.exit_context] = ['exit context']
-        self.modifiers[self.exit_context] = {}
-        self.name = name
-
-        super().__init__(command_hooks=command_hooks,
-                         modifiers=modifiers,
-                         name=self.name)  # initialize alpha Plugin
-
-    def exit_context(self):
-        """
-        Returns control to the alpha Plugin
-        """
-        alpha_name = self.name.split('.')[0]
-        self.request_plugin(alpha_name, command_string='')
 
 
 class Command(object):

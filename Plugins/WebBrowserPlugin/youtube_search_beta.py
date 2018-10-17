@@ -1,28 +1,25 @@
-from utils import web
-from Plugins import base
+from Plugins.WebBrowserPlugin.web_browser_plugin import WebBrowserPlugin
 
 
 # TODO: add pause/resume and viewer monitoring
-class YoutubeSearchBeta(base.BetaPlugin):
+class YoutubeSearchBeta(WebBrowserPlugin):
 
     def __init__(self):
+        super().__init__()
+        # replace the inherited values
+        self.name = 'WebBrowserPlugin.YoutubeSearchBeta'
         self.command_hooks = {self.search: ['search for', 'search'],
                               self.play: ['play', 'open']}
         self.modifiers = {self.search: {},
                           self.play: {}}
-        super().__init__(command_hooks=self.command_hooks,
-                         modifiers=self.modifiers,
-                         name='WebBrowserPlugin.YoutubeSearchBeta')
         self.webdriver = None
 
     def search(self):
-        if self.webdriver is None:
-            self.webdriver = web.WebDriver(self.configuration)
+        self._check_webdriver()
         self.webdriver.get('https://www.youtube.com/results?search_query={}'.format(self.command.premodifier))
 
     def play(self):
-        if self.webdriver is None:
-            self.webdriver = web.WebDriver(self.configuration)
+        self._check_webdriver()
         # iterate through available links
         links = self.webdriver.find_elements_by_id('video-title')
         for link in links:

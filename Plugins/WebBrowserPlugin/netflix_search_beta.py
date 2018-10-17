@@ -8,22 +8,22 @@ import pyautogui
 from threading import Thread
 from queue import Queue
 import pickle
-from Plugins import base
-from utils import web
+
+from Plugins.WebBrowserPlugin.web_browser_plugin import WebBrowserPlugin
 
 
-class NetflixSearchBeta(base.BetaPlugin):
+class NetflixSearchBeta(WebBrowserPlugin):
 
     def __init__(self):
+        super().__init__()
+        self.name = 'WebBrowserPlugin.NetflixSearchBeta'
         self.command_hooks = {self.search: ['search for', 'search'],
                               self.play: ['play'],
                               self.pause: ['pause', 'resume', 'start', 'stop']}
         self.modifiers = {self.search: {},
                           self.play: {'position': ['position']},
                           self.pause: {}}
-        super().__init__(command_hooks=self.command_hooks,
-                         modifiers=self.modifiers,
-                         name='WebBrowserPlugin.NetflixSearchBeta')
+
         self.status = None
         self.monitor_queue = Queue()
         self.monitor_thread = None
@@ -31,16 +31,14 @@ class NetflixSearchBeta(base.BetaPlugin):
         self.logged_in = False
 
     def search(self):
-        if self.webdriver is None:
-            self.webdriver = web.WebDriver(self.configuration)
+        self._check_webdriver()
         if not self.logged_in:
             self._login()
         self.webdriver.get('https://www.netflix.com/search?q={}'.format(self.command.premodifier))
         self.status = 'search'
 
     def play(self):
-        if self.webdriver is None:
-            self.webdriver = web.WebDriver(self.configuration)
+        self._check_webdriver()
         if not self.logged_in:
             self._login()
         # use row, column position notation to specify a show tile frm search
@@ -84,11 +82,10 @@ class NetflixSearchBeta(base.BetaPlugin):
             self.webdriver.quit()
         self.logged_in = False
         self.monitor_queue.put('quit')
-        super().exit_context()
+        self.request_plugin('WebBrowserPlugin', '')
 
     def _login(self):
-        if self.webdriver is None:
-            self.webdriver = web.WebDriver(self.configuration)
+        self._check_webdriver()
 
         # set environment variables
         netflix_email = self.request_environment_variable('NETFLIX_EMAIL')
@@ -134,15 +131,9 @@ class NetflixSearchBeta(base.BetaPlugin):
                     break
             # get frame data from cache
             frame_data = self.from_cache('WatcherPlugin')
-
-            # TODO: the pickle errors should be handled in Watcher
-            # load the frame data from pickle file
-            try:
-                face_names = frame_data['face_names']
-            except pickle.UnpicklingError:
-                face_names = []
-            except EOFError:
-                face_names = []
+            if frame_data is None:
+                continue
+            face_names = [d['name'] for d in frame_data]
 
             # set the initial viewer
             if initial_viewer is None:

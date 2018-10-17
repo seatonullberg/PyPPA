@@ -1,4 +1,5 @@
 from Plugins import base
+from utils import web
 
 
 class WebBrowserPlugin(base.Plugin):
@@ -31,3 +32,7 @@ class WebBrowserPlugin(base.Plugin):
         # send to beta
         cmd = 'search {}'.format(self.command.premodifier)
         self.request_plugin(plugin_name='WebBrowserPlugin.YoutubeSearchBeta', command_string=cmd)
+
+    def _check_webdriver(self):
+        if self.webdriver is None:
+            self.webdriver = web.WebDriver(self.configuration)
