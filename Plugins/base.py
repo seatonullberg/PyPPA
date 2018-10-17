@@ -86,7 +86,7 @@ class Plugin(object):
 
     def request_acceptance(self, plugin_name, command_string):
         """
-        Requests if plugin_name accepts the proposed command
+        Checks if plugin_name accepts the proposed command
         :param plugin_name: (str) Plugin to send to
         :param command_string: (str) command to test
         :return: (bool) indicating is command is accepted
@@ -103,7 +103,7 @@ class Plugin(object):
     #################
 
     def request_environment_variable(self, key, base=False):
-        # not a real request type
+        # does not actually make a request but fits the naming convention
         if base:
             value = self.configuration.environment_variables['Base'][key]
         else:
@@ -153,7 +153,6 @@ class Plugin(object):
             result = pickle.load(stream)
         return result
 
-    # irrelevent return value so the request_... style doesnt fit
     def reset_threshold(self):
         """
         Wraps ListenerService to reset the noise/signal threshold
@@ -185,11 +184,15 @@ class Plugin(object):
     def process_data_link(self, link):
         """
         This method describes the package's response to an arbitrary DataRequest
-        :param request: (communication.DataRequest)
+        :param link: (communication.DataLink)
         """
         return link
 
     def _process_link(self, link):
+        """
+        Redirects the processing of a Link object to the appropriate method and returns it to pool
+        :param link: (communication.Link)
+        """
         # plugin
         if isinstance(link, communication.PluginLink):
             link = self._process_plugin_link(link)
@@ -207,6 +210,11 @@ class Plugin(object):
         self.shared_dict[link.key] = link
 
     def _process_plugin_link(self, link):
+        """
+        Handles PluginLinks
+        :param link: communication.PluginLink
+        :return: communication.PluginLink
+        """
         self.is_active = True
         command = Command(input_string=link.fields['command_string'],
                           command_hooks=self.command_hooks,
@@ -221,6 +229,11 @@ class Plugin(object):
         return link
 
     def _process_acceptance_link(self, link):
+        """
+        Handles AcceptanceLinks
+        :param link: communication.AcceptanceLink
+        :return: communication.AcceptanceLink
+        """
         link.fields['result'] = self._accepts_command(link.fields['command_string'])
         return link
 
@@ -233,7 +246,7 @@ class Plugin(object):
 
     def _accepts_command(self, command):
         """
-        Checks whether or not the plugin accepts a Command object
+        Checks whether or not the plugin accepts command
         :param: (str) or (Command)
                 - if (str): creates command object from string and parses to check
                 - if (Command): checks directly

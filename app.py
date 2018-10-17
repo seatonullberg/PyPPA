@@ -8,7 +8,7 @@ from utils import communication
 
 class App(object):
     """
-    Controls Plugin-Plugin and Service-Plugin interactions
+    Controls Plugin-Plugin interactions
     """
 
     def __init__(self):
@@ -33,7 +33,7 @@ class App(object):
 
     def start(self):
         """
-        Instantiate all of the Plugins and Services in individual processes
+        Instantiate all of the Plugins in individual processes
         """
         package_names = [p for p in self.plugins]
         package_names += [b for b in self.betas]
@@ -67,9 +67,9 @@ class App(object):
     @staticmethod
     def _import_package(name):
         """
-        Load a Plugin or Service object into memory
+        Load a Plugin object into memory
         :param name: name of the package to import
-        :return: (Plugin or Service)
+        :return: (Plugin)
         """
         if name.endswith("Plugin"):
             a = "Plugins"

@@ -187,7 +187,7 @@ class Configuration(object):
             import_str = import_str.format('Plugins',
                                            package_name)
         else:
-            raise ValueError("invalid package_name")
+            raise ValueError("invalid package_name: {}".format(package_name))
 
         # if an import error is raised because of a missing autoconfig.py file or a missing
         # corresponding function it will be handled in self._set_environment_variables

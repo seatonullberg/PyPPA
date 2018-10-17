@@ -1,12 +1,9 @@
 requests
-wikipedia
 bs4
 selenium
 pyautogui
-flask
 pyaudio
 numpy
-praw
 pydub
 gtts
 cv2

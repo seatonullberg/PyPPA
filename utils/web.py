@@ -12,7 +12,7 @@ class WebDriver(webdriver.Chrome):
         :param configuration: configuration object from the calling plugin
         :param options: webdriver.ChromeOptions object to specify custom options
         """
-        chromedriver_path = configuration.environment_variables['BASE']['CHROMEDRIVER_PATH']
+        chromedriver_path = configuration.environment_variables['Base']['CHROMEDRIVER_PATH']
         if options is None:
             options = webdriver.ChromeOptions()
             options.add_argument('--no-sandbox')
