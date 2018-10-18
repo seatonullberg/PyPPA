@@ -7,7 +7,6 @@ from selenium.webdriver.common.by import By
 import pyautogui
 from threading import Thread
 from queue import Queue
-import pickle
 
 from Plugins.WebBrowserPlugin.web_browser_plugin import WebBrowserPlugin
 

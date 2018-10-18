@@ -10,11 +10,12 @@ class Plugin(object):
     Refer to /Plugins/README.md for in depth documentation on this object
     """
 
-    def __init__(self, command_hooks, modifiers, name):
+    def __init__(self, command_hooks, modifiers, name, data_link_map=None):
         # process args
         self.command_hooks = command_hooks
         self.modifiers = modifiers
         self.name = name
+        self.data_link_map = data_link_map
         self.shared_dict = None  # defined by App to allow data transfer between processes
 
         # initialize attributes
@@ -188,14 +189,6 @@ class Plugin(object):
     # PROCESS LINKS #
     #################
 
-    # TODO: implement some sort of data processing manager that is separate from plugin
-    def process_data_link(self, link):
-        """
-        This method describes the package's response to an arbitrary DataRequest
-        :param link: (communication.DataLink)
-        """
-        return link
-
     def _process_link(self, link):
         """
         Redirects the processing of a Link object to the appropriate method and returns it to pool
@@ -232,8 +225,12 @@ class Plugin(object):
         return link
 
     def _process_data_link(self, link):
-        # developers will have to define their own interactions with the data request
-        self.process_data_link(link)
+        # developers define their own interactions with each field type in the data_link_map
+        if self.data_link_map is None:
+            return link
+        for k, v in self.data_link_map.items():
+            if k in link.fields:
+                link = v(link)
         return link
 
     def _process_acceptance_link(self, link):

@@ -13,9 +13,14 @@ class SpeakerPlugin(base.Plugin):
 
     def __init__(self):
         self.name = 'SpeakerPlugin'
-        super().__init__(name=self.name, command_hooks={}, modifiers={})  # ok for plugins to not have commands
+        self.data_link_map = {'input_data': self.determine_backend}
+        super().__init__(name=self.name,
+                         command_hooks={},
+                         modifiers={},
+                         data_link_map=self.data_link_map)  # ok for plugins to not have commands
 
-    def process_data_link(self, link):
+    def determine_backend(self, link):
+        # methods added to data_link_map get called when their associated field is found in a data link request
         tts_engine = self.request_environment_variable('TTS_ENGINE')
         if tts_engine == "mimic":
             self._mimic_tts(link.fields['input_data'])
@@ -25,11 +30,13 @@ class SpeakerPlugin(base.Plugin):
             raise NotImplementedError()
         return link
 
-    def _mimic_tts(self, text):
+    @staticmethod
+    def _mimic_tts(text):
         mimic_path = os.path.join(os.getcwd(), 'bin', 'mimic', 'mimic')
         subprocess.call([mimic_path, "-t", text])
 
-    def _gtts_tts(self, text):
+    @staticmethod
+    def _gtts_tts(text):
         tts = gTTS(text=text,
                    lang='en',
                    slow=False,

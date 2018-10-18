@@ -25,7 +25,11 @@ class ListenerPlugin(base.Plugin):
         self.maximum = 10
 
         self.name = 'ListenerPlugin'
-        super().__init__(name=self.name, command_hooks={}, modifiers={})  # it is ok for plugins to not have comands
+        self.data_link_map = {'input_data': self.process_data_link}
+        super().__init__(name=self.name,
+                         command_hooks={},
+                         modifiers={},
+                         data_link_map=self.data_link_map)  # it is ok for plugins to not have comands
 
     def process_data_link(self, link):
         params_dict = link.fields['input_data']
